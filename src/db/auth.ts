@@ -4,25 +4,26 @@ import { db } from "./db";
 import * as schema from "./auth-schema";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP } from "better-auth/plugins";
+import { sendEmail } from "@/lib/email-client";
+import OtpEmail from "@/email/otp";
+
+const smtpConfigured =
+  !!process.env.SMTP_HOST && process.env.SMTP_HOST !== "smtp.example.com";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
-    provider: "pg", // or "mysql", "sqlite"
+    provider: "pg",
     schema: schema,
   }),
   plugins: [
     nextCookies(),
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
-        // Implement the sendVerificationOTP method to send the OTP to the user's email address
-        console.log(
-          "✉️ Sending OTP to:",
-          email,
-          "with code:",
-          otp,
-          "type is:",
-          type
-        );
+        if (!smtpConfigured) {
+          console.log("✉️ [dev] OTP for", email, ":", otp, "(type:", type, ")");
+          return;
+        }
+        await sendEmail(email, "Clean Sign 인증코드", OtpEmail({ otp }));
       },
     }),
   ],

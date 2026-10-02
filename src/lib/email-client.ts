@@ -37,12 +37,3 @@ export async function sendEmail(
     html: await render(html),
   });
 }
-
-// Example usage of sendEmail function
-// export async function sendHello() {
-//   await handleEmailFire({
-//     to: "hello@neorepo.com",
-//     subject: "Hello",
-//     html: await render(HelloEmail()),
-//   });
-// }
