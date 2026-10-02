@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
+import { Gothic_A1 } from "next/font/google";
 import "./globals.css";
+
+const gothic = Gothic_A1({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-gothic",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Clean Sign",
@@ -12,17 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
-      <head>
-        <link
-          rel="preconnect"
-          href="https://fonts.googleapis.com"
-        />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;600;700;800;900&display=swap"
-        />
-      </head>
+    <html lang="ko" className={gothic.variable}>
       <body className="font-sans antialiased">{children}</body>
     </html>
   );

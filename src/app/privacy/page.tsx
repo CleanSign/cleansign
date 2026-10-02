@@ -30,7 +30,7 @@ const SECTIONS = [
 export default function PrivacyPage() {
   return (
     <div className="flex min-h-screen flex-col items-center bg-bg">
-      <div className="flex w-full flex-col px-5 md:w-[620px] md:px-0">
+      <div className="flex w-full flex-col px-5 md:w-155 md:px-0">
         <div className="flex items-center gap-2 pb-1.5 pt-4.5 md:pt-10">
           <Link href="/profile" aria-label="뒤로가기" className="flex h-9 w-9 items-center justify-center text-ink">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -31,7 +31,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-bg">
-      <div className="flex w-full flex-col px-5 md:w-[520px] md:px-0">
+      <div className="flex w-full flex-col px-5 md:w-130 md:px-0">
         <div className="flex items-center gap-2 pb-1.5 pt-4.5 md:pt-10">
           <Link href="/home" aria-label="홈으로" className="flex h-9 w-9 items-center justify-center text-ink">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -49,7 +49,7 @@ export default async function ProfilePage() {
                 <path d="M4.5 20c1.5-4 5-5.5 7.5-5.5s6 1.5 7.5 5.5" />
               </svg>
             </Avatar>
-            <div className="flex flex-grow flex-col gap-1">
+            <div className="flex grow flex-col gap-1">
               <span className="text-[14.5px] font-bold text-ink">{session.user.email}</span>
               <Tag>무료 플랜</Tag>
             </div>
@@ -104,7 +104,7 @@ export default async function ProfilePage() {
 
         <div className="pt-5">
           <LogoutButton className="flex w-full items-center gap-3 rounded-2xl bg-danger/10 px-4 py-3.5 text-left">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] bg-danger/14 text-danger">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-danger/14 text-danger">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 4H6a2 2 0 00-2 2v12a2 2 0 002 2h3" />
                 <path d="M15 8l4 4-4 4" />

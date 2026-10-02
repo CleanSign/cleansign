@@ -72,7 +72,7 @@ export default function SignupPage() {
         </Link>
       </div>
 
-      <div className="flex w-full flex-grow flex-col justify-center px-6 md:w-[420px] md:flex-grow-0 md:px-0">
+      <div className="flex w-full grow flex-col justify-center px-6 md:w-105 md:grow-0 md:px-0">
         <BrandHeader className="hidden pb-9 md:flex" />
 
         {step === "email" && (

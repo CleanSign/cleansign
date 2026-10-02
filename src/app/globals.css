@@ -15,7 +15,7 @@
   --color-danger: #ff5d5d;
   --color-warn: #ffb13d;
   --color-mint: #2dd9a8;
-  --font-sans: "Gothic A1", system-ui, sans-serif;
+  --font-sans: var(--font-gothic), "Gothic A1", system-ui, sans-serif;
 }
 
 body {

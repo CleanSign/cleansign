@@ -14,7 +14,7 @@ export function IconTile({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px]", TONES[tone])}>
+    <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]", TONES[tone])}>
       {children}
     </div>
   );
@@ -38,7 +38,7 @@ export function ListRow({
   return (
     <Link href={href} className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3.5">
       <IconTile tone={tone}>{icon}</IconTile>
-      <div className="flex flex-grow flex-col gap-0.5">
+      <div className="flex grow flex-col gap-0.5">
         <span className="text-[13.5px] font-bold text-ink">{title}</span>
         {sub && <span className="text-[11.5px] text-ink-3">{sub}</span>}
       </div>

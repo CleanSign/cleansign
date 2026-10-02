@@ -48,7 +48,7 @@ export default function PermissionsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg md:items-center md:justify-center">
-      <div className="flex w-full flex-grow flex-col px-5 pt-6 md:w-[440px] md:flex-grow-0 md:px-0 md:pt-0">
+      <div className="flex w-full grow flex-col px-5 pt-6 md:w-110 md:grow-0 md:px-0 md:pt-0">
         <BrandHeader className="pb-9" />
 
         <div className="pb-7 text-center text-[21px] font-extrabold leading-snug tracking-tight text-ink md:text-2xl">

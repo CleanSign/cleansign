@@ -20,7 +20,7 @@ export function Avatar({
     <BaseAvatar.Root
       style={{ width: size, height: size }}
       className={cn(
-        "inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full align-middle",
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full align-middle",
         tone === "accent" ? "bg-accent/16 text-accent-2" : "bg-surface text-ink-2",
         className,
       )}

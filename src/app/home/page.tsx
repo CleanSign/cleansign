@@ -43,7 +43,7 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-bg">
-      <div className="flex w-full flex-col px-5 md:w-[620px] md:px-0">
+      <div className="flex w-full flex-col px-5 md:w-155 md:px-0">
         <div className="flex items-center justify-between pb-2 pt-5.5 md:pt-10">
           <div className="flex items-center gap-2">
             <BrandMark size={20} />
@@ -66,17 +66,17 @@ export default async function HomePage() {
 
         <div className="pt-4.5 md:pt-5.5">
           <a href="#" className="flex items-center gap-3.5 rounded-[20px] bg-accent px-5 py-5 md:gap-4 md:px-6.5 md:py-6">
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/16 text-white md:h-[50px] md:w-[50px]">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/16 text-white md:h-12.5 md:w-12.5">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3l7 3v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z" />
                 <path d="M9 12l2 2 4-4" />
               </svg>
             </div>
-            <div className="flex flex-grow flex-col gap-0.5">
+            <div className="flex grow flex-col gap-0.5">
               <span className="text-[15.5px] font-extrabold text-white md:text-[17px]">새 계약서 분석하기</span>
               <span className="text-xs font-medium text-white/75 md:text-[13px]">촬영하거나 PDF로 5초 안에 확인해요</span>
             </div>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="M9 5l7 7-7 7" />
             </svg>
           </a>
@@ -89,7 +89,7 @@ export default async function HomePage() {
               <a
                 key={a.title}
                 href="#"
-                className="flex w-[228px] flex-shrink-0 flex-col gap-2.5 rounded-2xl bg-surface p-4"
+                className="flex w-57 shrink-0 flex-col gap-2.5 rounded-2xl bg-surface p-4"
               >
                 <Tag tone={a.tone}>{a.tag}</Tag>
                 <span className="text-[13.5px] font-bold leading-snug text-ink">{a.title}</span>
@@ -104,18 +104,18 @@ export default async function HomePage() {
             href="#"
             className="flex items-center gap-3.5 rounded-[18px] border border-mint/22 bg-mint/8 px-4.5 py-4.5"
           >
-            <div className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-xl bg-mint/16 text-mint">
+            <div className="flex h-10.5 w-10.5 shrink-0 items-center justify-center rounded-xl bg-mint/16 text-mint">
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="9" />
                 <path d="M9.5 9a2.5 2.5 0 015 0c0 1.8-2.2 2-2.5 3.5" />
                 <circle cx="12" cy="16.3" r="0.5" fill="currentColor" stroke="none" />
               </svg>
             </div>
-            <div className="flex flex-grow flex-col gap-0.5">
+            <div className="flex grow flex-col gap-0.5">
               <span className="text-[14.5px] font-extrabold text-ink">전문가와 상담하기</span>
               <span className="text-[11.5px] font-medium text-ink-2">공인중개사·변호사 상담 1건 19,000원부터</span>
             </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2DD9A8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2DD9A8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="M9 5l7 7-7 7" />
             </svg>
           </a>
