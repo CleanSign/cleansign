@@ -13,19 +13,19 @@
 
 ## Getting Started
 
-Run the `bun run clear` to clear the migrations folder and the database.
+Run the `npm run clear` to clear the migrations folder and the database.
 After configuring the `schema.ts` file, generate new migrations with:
 
 ```bash
-bun run create:migration
+npm run create:migration
 ```
 
 ## Local Development
 
 ```bash
 cp .env.example .env # Copy the example environment variables
-bun run local:up # Runs the local PostgreSQL database
-bun run dev # Starts the Next.js development server
+npm run local:up # Runs the local PostgreSQL database
+npm run dev # Starts the Next.js development server
 ```
 
 ### 한 번에 실행 (DB + Ollama + AI 서버 + 앱)

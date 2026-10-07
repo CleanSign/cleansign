@@ -1,26 +1,25 @@
 # Stage 1: The Builder 🏗️
-# Use the full Bun image to install dependencies and build the project
-FROM oven/bun:1 AS builder
+# Install dependencies and build the project
+FROM node:22 AS builder
 WORKDIR /app
 
 # Copy dependency-related files
-COPY package.json bun.lock ./
+COPY package.json package-lock.json ./
 
-# Install dependencies using Bun's fast installer
-# --frozen-lockfile ensures the exact versions from the lockfile are used
-RUN bun install --frozen-lockfile
+# npm ci installs the exact versions from the lockfile
+RUN npm ci
 
 # Copy the rest of the application source code
 COPY . .
 
 # Run the Next.js build command
-RUN bun run build
+RUN npm run build
 
 # ---
 
 # Stage 2: The Runner 🚀
 # Use the lightweight 'slim' image for the final production container
-FROM oven/bun:1-slim AS runner
+FROM node:22-slim AS runner
 WORKDIR /app
 
 # Set the environment to production
@@ -39,5 +38,5 @@ COPY --from=builder /app/migrations ./migrations
 # Expose the port the app will run on
 EXPOSE 3000
 
-# The command to start the Next.js server using Bun
-CMD ["bun", "server.js"]
+# The command to start the Next.js server
+CMD ["node", "server.js"]
