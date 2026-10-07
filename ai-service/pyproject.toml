@@ -11,6 +11,9 @@ dependencies = [
   "pydantic-settings>=2.4",
   "pypdf>=5.0",
   "python-multipart>=0.0.9",
+  "rapidocr>=3.9.2",
+  "onnxruntime>=1.30.0",
+  "pypdfium2>=5.14.0",
 ]
 
 [dependency-groups]

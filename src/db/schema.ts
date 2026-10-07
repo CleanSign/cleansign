@@ -68,7 +68,7 @@ export const contract = pgTable(
     modelVersion: text("model_version"),
     warnings: jsonb("warnings").$type<string[]>(),
     riskFlow: jsonb("risk_flow"),
-    // 분석 중(pending)일 때만 의미가 있다. stage: reading | splitting | classifying | scoring
+    // 분석 중(pending)일 때만 의미가 있다. stage: reading | ocr | splitting | classifying | scoring
     progress: jsonb("progress").$type<{ stage: string; done: number; total: number }>(),
     errorMessage: text("error_message"),
     createdAt: timestamp("created_at")

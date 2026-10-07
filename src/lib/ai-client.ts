@@ -96,6 +96,7 @@ export async function analyzeContract(
         } else if (ev.type === "result") {
           return ev.data as AiAnalysis;
         } else if (ev.type === "error") {
+          if (ev.readable) throw new AiServiceError(ev.detail, 422); // 스캔본 OCR 실패 등: 메시지를 그대로 보여 준다
           console.error("[ai-service]", ev.detail);
           throw new AiServiceError("분석 중 문제가 생겼어요", 502);
         }

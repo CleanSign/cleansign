@@ -1,3 +1,4 @@
+import json
 import io
 
 import pytest
@@ -48,13 +49,31 @@ def test_rejects_non_pdf(client):
     assert r.status_code == 415
 
 
-def test_rejects_pdf_without_text(client):
+def _blank_pdf() -> bytes:
     buf = io.BytesIO()
     c = canvas.Canvas(buf)
     c.rect(10, 10, 50, 50)
     c.save()
-    r = client.post("/v1/analyze", files={"file": ("scan.pdf", buf.getvalue(), "application/pdf")})
-    assert r.status_code == 422 and "스캔" in r.json()["detail"]
+    return buf.getvalue()
+
+
+def test_rejects_scanned_pdf_when_ocr_disabled(client, monkeypatch):
+    monkeypatch.setattr(settings, "ocr_enabled", False)
+    for path in ("/v1/analyze", "/v1/analyze/stream"):
+        r = client.post(path, files={"file": ("scan.pdf", _blank_pdf(), "application/pdf")})
+        assert r.status_code == 422 and "스캔" in r.json()["detail"]
+
+
+def test_scanned_pdf_goes_through_ocr(client, monkeypatch):
+    def fake_ocr(data, max_pages, on_page=None):
+        on_page(1, 1)
+        return "제1조 임차인은 보증금 전액을 계약 종료 후에도 반환받지 못할 수 있다.\n제2조 임차인은 모든 수선비를 부담한다."
+
+    monkeypatch.setattr("app.main.ocr_text", fake_ocr)
+    r = client.post("/v1/analyze/stream", files={"file": ("scan.pdf", _blank_pdf(), "application/pdf")})
+    events = [json.loads(line) for line in r.text.splitlines() if line]
+    assert any(e["type"] == "progress" and e["stage"] == "ocr" for e in events)
+    assert events[-1]["type"] == "result"
 
 
 def test_token_required_when_configured(client, monkeypatch):

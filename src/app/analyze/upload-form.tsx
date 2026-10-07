@@ -102,7 +102,7 @@ export function UploadForm() {
         {busy ? "올리는 중..." : "분석하기"}
       </Button>
       <p className="text-center text-[11.5px] leading-relaxed text-ink-4">
-        사진이나 스캔한 계약서는 아직 지원하지 않아요
+        스캔한 계약서는 글자로 바꾸느라 시간이 더 걸려요
       </p>
     </div>
   );

@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 type Progress = { stage: string; done: number; total: number } | null;
 
 // 서버가 알려 주는 실제 처리 단계. 진행률 막대가 아니라 지금 하는 일을 보여 준다.
-const STAGES = ["reading", "splitting", "classifying", "scoring"] as const;
+const STAGES = ["reading", "ocr", "splitting", "classifying", "scoring"] as const;
 const LABEL: Record<string, string> = {
   reading: "계약서를 읽는 중",
+  ocr: "스캔한 계약서를 글자로 바꾸는 중",
   splitting: "조항을 나누는 중",
   classifying: "조항을 하나씩 살펴보는 중",
   scoring: "예상 손실을 계산하는 중",
@@ -49,7 +50,8 @@ export function AnalysisProgress({ id, initial }: { id: string; initial: Progres
 
   const stage = progress?.stage ?? "reading";
   const index = Math.max(0, STAGES.indexOf(stage as (typeof STAGES)[number]));
-  const counter = stage === "classifying" && progress && progress.total > 0 ? `${progress.done} / ${progress.total}` : null;
+  const hasTotal = !!progress && progress.total > 0;
+  const counter = stage === "classifying" && hasTotal ? `${progress.done} / ${progress.total}개 조항을 확인했어요` : stage === "ocr" && hasTotal ? `${progress.done} / ${progress.total}쪽을 읽었어요` : null;
 
   return (
     <div className="flex flex-col items-center gap-6 pt-24" role="status" aria-live="polite">
@@ -57,7 +59,7 @@ export function AnalysisProgress({ id, initial }: { id: string; initial: Progres
       <div className="flex flex-col items-center gap-2">
         <span className="text-[17px] font-extrabold tracking-tight text-ink">{LABEL[stage] ?? LABEL.reading}</span>
         <span className="text-[12.5px] text-ink-2">
-          {counter ? `${counter}개 조항을 확인했어요` : "계약서 길이에 따라 시간이 걸릴 수 있어요"}
+          {counter ?? "계약서 길이에 따라 시간이 걸릴 수 있어요"}
         </span>
       </div>
       <ol className="flex gap-1.5" aria-hidden>
