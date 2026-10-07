@@ -3,11 +3,12 @@
 import { Button as BaseButton } from "@base-ui/react/button";
 import { cn } from "./cn";
 
-type Variant = "primary" | "text";
+type Variant = "primary" | "text" | "danger";
 
 const VARIANTS: Record<Variant, string> = {
   primary:
     "w-full rounded-2xl bg-accent py-4 text-[15px] font-bold text-white data-[disabled]:opacity-30",
+  danger: "rounded-2xl bg-danger py-3.5 text-[14px] font-bold text-white data-[disabled]:opacity-30",
   text: "self-center bg-transparent text-[12.5px] font-semibold text-ink-2 data-[disabled]:opacity-30",
 };
 

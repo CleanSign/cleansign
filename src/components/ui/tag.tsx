@@ -4,6 +4,8 @@ const TONES = {
   accent: "bg-accent/14 text-accent-2",
   warn: "bg-warn/14 text-warn",
   mint: "bg-mint/14 text-mint",
+  danger: "bg-danger/14 text-danger",
+  neutral: "bg-white/6 text-ink-2",
 } as const;
 
 export function Tag({

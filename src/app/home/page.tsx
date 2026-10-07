@@ -5,6 +5,8 @@ import { auth } from "@/db/auth";
 import { ListRow } from "@/components/ui/list-row";
 import { Avatar } from "@/components/ui/avatar";
 import { HScroll } from "@/components/ui/h-scroll";
+import { getRecentContracts } from "@/lib/contract-queries";
+import { formatDate, stripPdf } from "@/lib/format";
 import { Tag } from "@/components/ui/tag";
 import { BrandMark } from "@/components/ui/brand";
 
@@ -29,17 +31,17 @@ const ARTICLES = [
   },
 ];
 
-const RECENT = [
-  { title: "왕십리동 원룸 · 전세계약서", date: "2026.09.24", risk: "위험 높음 · 3건", riskClass: "text-danger" },
-  { title: "역삼동 오피스텔 · 월세계약서", date: "2026.09.18", risk: "위험 낮음 · 0건", riskClass: "text-mint" },
-  { title: "봉천동 투룸 · 전세계약서", date: "2026.09.02", risk: "위험 중간 · 1건", riskClass: "text-warn" },
-];
+function riskLabel(count: number) {
+  if (count === 0) return { text: "위험 조항 없음", cls: "text-mint" };
+  return { text: `위험 조항 ${count}건`, cls: count >= 3 ? "text-danger" : "text-warn" };
+}
 
 export default async function HomePage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     redirect("/");
   }
+  const recent = await getRecentContracts(session.user.id, 3);
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-bg">
@@ -65,7 +67,7 @@ export default async function HomePage() {
         </div>
 
         <div className="pt-4.5 md:pt-5.5">
-          <a href="#" className="flex items-center gap-3.5 rounded-[20px] bg-accent px-5 py-5 md:gap-4 md:px-6.5 md:py-6">
+          <Link href="/analyze" className="flex items-center gap-3.5 rounded-[20px] bg-accent px-5 py-5 md:gap-4 md:px-6.5 md:py-6">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/16 text-white md:h-12.5 md:w-12.5">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3l7 3v5c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z" />
@@ -74,12 +76,12 @@ export default async function HomePage() {
             </div>
             <div className="flex grow flex-col gap-0.5">
               <span className="text-[15.5px] font-extrabold text-white md:text-[17px]">새 계약서 분석하기</span>
-              <span className="text-xs font-medium text-white/75 md:text-[13px]">촬영하거나 PDF로 5초 안에 확인해요</span>
+              <span className="text-xs font-medium text-white/75 md:text-[13px]">PDF로 올리면 위험 조항을 찾아드려요</span>
             </div>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="M9 5l7 7-7 7" />
             </svg>
-          </a>
+          </Link>
         </div>
 
         <div className="pt-6">
@@ -123,28 +125,39 @@ export default async function HomePage() {
 
         <div className="flex items-center justify-between pt-5.5">
           <span className="text-[13px] font-bold text-ink">최근 분석</span>
-          <a href="#" className="text-[12.5px] font-semibold text-accent-2">
+          <Link href="/contracts" className="text-[12.5px] font-semibold text-accent-2">
             전체보기
-          </a>
+          </Link>
         </div>
 
         <div className="flex flex-col gap-2.5 pt-3 pb-9">
-          {RECENT.map((r) => (
-            <ListRow
-              key={r.title}
-              href="#"
-              icon={
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 3h7l4 4v14H7z" />
-                  <path d="M14 3v4h4" />
-                  <path d="M9.5 13h5M9.5 17h5" />
-                </svg>
-              }
-              title={r.title}
-              sub={r.date}
-              trailing={<span className={`whitespace-nowrap text-xs font-bold ${r.riskClass}`}>{r.risk}</span>}
-            />
-          ))}
+          {recent.length === 0 && (
+            <div className="rounded-2xl bg-surface px-4 py-5 text-center text-[12.5px] leading-relaxed text-ink-3">
+              아직 분석한 계약서가 없어요.
+              <br />
+              위의 &lsquo;새 계약서 분석하기&rsquo;로 시작해 보세요
+            </div>
+          )}
+          {recent.map((r) => {
+            const risk =
+              r.status === "pending" ? { text: "분석 중", cls: "text-accent-2" } : riskLabel(r.clauseCount);
+            return (
+              <ListRow
+                key={r.id}
+                href={`/contracts/${r.id}`}
+                icon={
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7 3h7l4 4v14H7z" />
+                    <path d="M14 3v4h4" />
+                    <path d="M9.5 13h5M9.5 17h5" />
+                  </svg>
+                }
+                title={stripPdf(r.fileName)}
+                sub={formatDate(r.createdAt)}
+                trailing={<span className={`whitespace-nowrap text-xs font-bold ${risk.cls}`}>{risk.text}</span>}
+              />
+            );
+          })}
         </div>
       </div>
     </div>
