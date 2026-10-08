@@ -16,7 +16,7 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@react-email/components": "^0.5.1",
-    "better-auth": "1.4.22",
+    "better-auth": "1.7.7",
     "drizzle-orm": "^0.44.4",
     "next": "15.5.0",
     "nodemailer": "^7.0.5",
