@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { auth } from "@/db/auth";
+import { auth } from "@/lib/auth";
 import { getContractForUser } from "@/lib/contract-queries";
 
 /** 조항 상세. GET /api/v1/contracts/{id}/clauses/{clauseId} */

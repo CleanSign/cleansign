@@ -3,16 +3,13 @@ import {
   pgEnum,
   text,
   timestamp,
-  boolean,
   integer,
   real,
   jsonb,
   index,
 } from "drizzle-orm/pg-core";
 import { desc } from "drizzle-orm";
-import { user } from "./auth-schema";
-
-export * from "./auth-schema";
+import { user } from "./auth";
 
 export const contractStatus = pgEnum("contract_status", [
   "pending",
@@ -25,25 +22,6 @@ export const clauseSeverity = pgEnum("clause_severity", [
   "medium",
   "low",
 ]);
-
-export const userConsent = pgTable(
-  "user_consent",
-  {
-    id: text("id")
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    userId: text("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    terms: boolean("terms").notNull(),
-    privacy: boolean("privacy").notNull(),
-    marketing: boolean("marketing").notNull().default(false),
-    createdAt: timestamp("created_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-  },
-  (table) => [index("user_consent_user_id_idx").on(table.userId)],
-);
 
 export const contract = pgTable(
   "contract",

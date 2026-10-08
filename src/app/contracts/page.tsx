@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/db/auth";
+import { auth } from "@/lib/auth";
 import { getContractPage } from "@/lib/contract-queries";
 import { formatDate, formatWon, stripPdf } from "@/lib/format";
 import { ListRow } from "@/components/ui/list-row";

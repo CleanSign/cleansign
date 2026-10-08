@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/db/auth";
+import { auth } from "@/lib/auth";
 import { ListRow } from "@/components/ui/list-row";
 import { Avatar } from "@/components/ui/avatar";
 import { HScroll } from "@/components/ui/h-scroll";

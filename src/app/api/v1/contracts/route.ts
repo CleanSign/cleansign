@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { auth } from "@/db/auth";
+import { auth } from "@/lib/auth";
 import { db } from "@/db/db";
 import { contract } from "@/db/schema";
 import { runAnalysis } from "@/lib/analysis-job";

@@ -7,6 +7,8 @@
 #   make stop                make run으로 남은 앱/AI 서버를 포트로 찾아 끈다
 #   make stop-ollama         모델을 내리고 `ollama serve`를 끈다
 #   make check               타입 체크 + 린트 + AI 서버 테스트
+#   make domain NAME=article 새 도메인 스키마 뼈대 생성 (src/db/schema/article.ts + index.ts 등록)
+#   make gen                 스키마 변경 → 마이그레이션 SQL 생성 + DB 적용 (DB만 띄움, 앱은 불필요)
 #
 # 변수: PORT(앱) AI_PORT(AI 서버) LLM(ollama|mock) MODEL(Ollama 모델) MOCK_DELAY_S(mock 지연, 진행 화면 확인용)
 
@@ -18,10 +20,10 @@ MODEL ?= gemma4:12b
 MOCK_DELAY_S ?= 0
 OLLAMA_URL ?= http://localhost:11434
 
-.PHONY: help run setup stop stop-ollama status check
+.PHONY: help run setup domain gen stop stop-ollama status check
 
 help:
-	@sed -n '3,12p' Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '3,14p' Makefile | sed 's/^# \{0,1\}//'
 
 # 의존성이 없을 때만 설치한다
 setup:
@@ -67,6 +69,19 @@ status:
 	@printf "Ollama    "; curl -sf $(OLLAMA_URL)/api/version >/dev/null && echo "실행 중 (모델: $$(curl -s $(OLLAMA_URL)/api/ps | python3 -c 'import sys,json;print(", ".join(m["name"] for m in json.load(sys.stdin)["models"]) or "로드 안 됨")'))" || echo "꺼짐"
 	@printf "AI 서버   "; curl -sf localhost:$(AI_PORT)/healthz 2>/dev/null || echo "꺼짐 (:$(AI_PORT))"
 	@printf "\n앱        "; lsof -nP -iTCP:$(PORT) -sTCP:LISTEN >/dev/null 2>&1 && echo "실행 중 (:$(PORT))" || echo "꺼짐 (:$(PORT))"
+
+# 새 도메인 스키마 파일 뼈대를 만들고 index.ts 에 등록한다 (컬럼은 직접 채운다)
+domain:
+	@./scripts/new-domain.sh "$(NAME)"
+
+# src/db/schema 를 바꾼 뒤 한 번에: SQL 생성(migrations/) → DB 기동 → DB 적용
+# 생성된 SQL은 적용 전에 눈으로 확인하세요 (이미 적용된 마이그레이션 파일은 고치지 말 것)
+gen: setup
+	@echo "▶ 마이그레이션 SQL 생성"; npm run -s create:migration
+	@docker info >/dev/null 2>&1 || { echo "Docker가 꺼져 있어요. Docker Desktop을 켜 주세요"; exit 1; }
+	@echo "▶ DB (postgres)"; npm run -s local:up
+	@echo "▶ DB에 적용"; node --env-file=.env node_modules/.bin/drizzle-kit migrate
+	@echo "✅ 완료"
 
 # 앱/AI 서버가 쓰는 포트의 리스너만 끈다 (무엇을 끄는지 먼저 보여 준다). DB와 Ollama는 건드리지 않는다.
 stop:

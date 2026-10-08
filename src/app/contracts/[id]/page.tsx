@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/db/auth";
+import { auth } from "@/lib/auth";
 import { getContractForUser } from "@/lib/contract-queries";
 import { SEVERITY_CHIP, clauseLabel, formatDate, formatWon, stripPdf } from "@/lib/format";
 import { ConfirmDelete } from "@/components/ui/confirm-delete";

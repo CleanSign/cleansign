@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { auth } from "@/db/auth";
+import { auth } from "@/lib/auth";
 import { db } from "@/db/db";
 import { userConsent } from "@/db/schema";
 
