@@ -1,4 +1,4 @@
-// Package authctx는 인증된 요청의 사용자·세션을 컨텍스트로 전달한다.
+// Package authctx passes the authenticated request's user and session through the context.
 package authctx
 
 import "context"

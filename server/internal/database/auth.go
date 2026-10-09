@@ -10,7 +10,7 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/domain/auth"
 )
 
-// CodeRepo는 인증코드 포트를 구현한다.
+// CodeRepo implements the verification-code port.
 type CodeRepo struct{ q *sqlc.Queries }
 
 func NewCodeRepo(pool *pgxpool.Pool) *CodeRepo { return &CodeRepo{q: queries(pool)} }
@@ -40,7 +40,7 @@ func (r *CodeRepo) DeleteExpired(ctx context.Context, now time.Time) (int64, err
 	return r.q.DeleteExpiredEmailCodes(ctx, now)
 }
 
-// SessionRepo는 세션 포트를 구현한다.
+// SessionRepo implements the session port.
 type SessionRepo struct{ q *sqlc.Queries }
 
 func NewSessionRepo(pool *pgxpool.Pool) *SessionRepo { return &SessionRepo{q: queries(pool)} }
@@ -58,7 +58,7 @@ func (r *SessionRepo) Get(ctx context.Context, id string) (auth.Session, error) 
 	return auth.Session{ID: row.ID, UserID: row.UserID, RememberDevice: row.RememberDevice, ExpiresAt: row.ExpiresAt.UTC(), CreatedAt: row.CreatedAt.UTC()}, nil
 }
 
-// Delete는 세션이 없어도 오류가 아니다.
+// Delete is not an error even if the session does not exist.
 func (r *SessionRepo) Delete(ctx context.Context, id string) error {
 	return r.q.DeleteSession(ctx, id)
 }

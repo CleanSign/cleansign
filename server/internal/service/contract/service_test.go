@@ -16,7 +16,7 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/shared/errs"
 )
 
-// fakeRepo는 메모리에 저장하는 Repository다.
+// fakeRepo is a Repository that stores in memory.
 type fakeRepo struct {
 	mu        sync.Mutex
 	contracts map[string]contract.Contract
@@ -137,11 +137,11 @@ func (r *fakeRepo) status(id string) (contract.Contract, bool) {
 	return c, ok
 }
 
-// fakeAnalyzer는 정해진 결과나 오류를 돌려주는 Analyzer다.
+// fakeAnalyzer is an Analyzer that returns a preset result or error.
 type fakeAnalyzer struct {
 	result contract.Analysis
 	err    error
-	gate   chan struct{} // 있으면 열릴 때까지 기다린다
+	gate   chan struct{} // if set, waits until it is opened
 	panics bool
 }
 
@@ -215,7 +215,7 @@ func TestSubmitCompletesInBackground(t *testing.T) {
 	s, _ := newService(repo, &fakeAnalyzer{result: sampleResult()})
 	id := submit(t, s, "u1")
 
-	// 응답 직후의 상태는 pending이고 진행 상황이 있어야 한다 (분석은 이어서 돈다)
+	// right after the response the state is pending and has progress (the analysis keeps running)
 	if c, ok := repo.status(id); !ok || (c.Status != contract.StatusPending && c.Status != contract.StatusCompleted) {
 		t.Fatalf("제출 직후 상태: %+v", c)
 	}
@@ -293,7 +293,7 @@ func TestGetOnlyOwnContract(t *testing.T) {
 
 func TestGetMarksStalePendingAsFailed(t *testing.T) {
 	repo := newFakeRepo()
-	gate := make(chan struct{}) // 분석이 끝나지 않는 상황
+	gate := make(chan struct{}) // a situation where the analysis never finishes
 	s, clk := newService(repo, &fakeAnalyzer{gate: gate})
 	id := submit(t, s, "u1")
 
@@ -380,7 +380,7 @@ func TestShutdownWaitsForRunningJobs(t *testing.T) {
 
 func TestShutdownCancelsAfterDeadline(t *testing.T) {
 	repo := newFakeRepo()
-	s, _ := newService(repo, &fakeAnalyzer{gate: make(chan struct{})}) // 끝나지 않는 분석
+	s, _ := newService(repo, &fakeAnalyzer{gate: make(chan struct{})}) // an analysis that never finishes
 	id := submit(t, s, "u1")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)

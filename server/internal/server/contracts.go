@@ -12,7 +12,7 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/domain/contract"
 )
 
-// 업로드 요청 전체의 상한: 파일 상한에 multipart 경계 등의 여유를 더한다.
+// Cap for the whole upload request: the file cap plus slack for multipart boundaries and the like.
 const maxUploadRequestBytes = contract.MaxUploadBytes + 1<<20
 
 func (h *handler) CreateContract(c echo.Context) error {
@@ -51,7 +51,7 @@ func (h *handler) ListContracts(c echo.Context, params api.ListContractsParams) 
 	ctx := c.Request().Context()
 	page, limit := contract.NormalizePage(deref(params.Page), deref(params.Limit))
 
-	// 홈 화면의 최근 목록: 완료·진행 중만, 한 번에 limit개
+	// Recent list on the home screen: only completed and in-progress, limit items at a time
 	if params.Status != nil && *params.Status == api.ListContractsParamsStatus("active") {
 		items, err := h.Contracts.Recent(ctx, userID, limit)
 		if err != nil {
@@ -109,7 +109,7 @@ func (h *handler) GetClause(c echo.Context, id, clauseID string) error {
 	})
 }
 
-// --- 응답 모양 ---
+// --- Response shapes ---
 
 func deref(s *string) string {
 	if s == nil {
@@ -136,7 +136,7 @@ func listItems(items []contract.Summary) []api.ContractListItem {
 	return out
 }
 
-// contractResponse는 상세 응답을 만든다. pending/failed도 같은 모양으로 돌려준다.
+// contractResponse builds the detail response. pending/failed are returned in the same shape.
 func contractResponse(c contract.Contract, clauses []contract.Clause) api.Contract {
 	resp := api.Contract{
 		Id: c.ID, Status: api.ContractStatus(c.Status), FileName: c.FileName, CreatedAt: c.CreatedAt,
@@ -168,7 +168,7 @@ func contractResponse(c contract.Contract, clauses []contract.Clause) api.Contra
 			Id: cl.ID, Original: cl.Original, ClauseType: cl.ClauseType, Confidence: cl.Confidence,
 			Severity: api.Severity(cl.Severity), LossAmount: int(cl.LossAmount), Reason: cl.Reason, SafeText: cl.SafeText,
 		}
-		// 조항 상세 API와 달리 쉼표로 이은 문자열 그대로 내보낸다
+		// unlike the clause detail API, emit the comma-joined string as is
 		if joined := strings.Join(cl.LawReference, ", "); joined != "" {
 			item.LawReference = &joined
 		}

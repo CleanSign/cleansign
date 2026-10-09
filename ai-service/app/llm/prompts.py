@@ -1,4 +1,4 @@
-# scripts/ai/classify_probe.py v1 프롬프트 (gemma4:12b로 16개 조항 12개 일치, 이유 문장 없는 FAST 스키마).
+# scripts/ai/classify_probe.py v1 prompt (gemma4:12b matched 12 of 16 clauses; FAST schema without a reason sentence).
 SYSTEM_CLASSIFY = """당신은 한국 주택임대차 계약서의 특약 조항을 검토하는 도우미입니다.
 조항 하나를 읽고 아래 유형 중 하나로 분류하세요.
 - 선순위근저당: 선순위 담보·근저당 설정 관련, 임차인 보증금 회수 순위를 해치는 조항

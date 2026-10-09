@@ -2,12 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const ACCESS = "cs_access";
 const REFRESH = "cs_refresh";
-// access 토큰이 이 시간 안에 만료되면 미리 갱신한다
+// Refresh the access token ahead of time if it expires within this window
 const REFRESH_SKEW_MS = 60_000;
 
 const serverUrl = () => process.env.SERVER_URL ?? "http://localhost:4000";
 
-/** JWT 본문의 exp(초)를 읽는다. 서명은 검증하지 않는다(만료 시각만 보고 갱신 여부를 정한다). */
+/** Reads exp (seconds) from the JWT payload. Does not verify the signature (only the expiry time decides whether to refresh). */
 function expiresAtMs(token: string | undefined): number | null {
   if (!token) return null;
   try {
@@ -19,7 +19,7 @@ function expiresAtMs(token: string | undefined): number | null {
   }
 }
 
-/** 요청 쿠키 헤더에서 이름이 같은 쿠키를 바꾸거나 지운다(뒤따르는 서버 컴포넌트가 새 값을 보게 한다). */
+/** Replaces or removes the same-named cookie in the request cookie header (so the following server components see the new value). */
 function withCookies(req: NextRequest, set: Record<string, string | null>): Headers {
   const jar = new Map<string, string>();
   for (const c of req.cookies.getAll()) jar.set(c.name, c.value);
@@ -33,8 +33,8 @@ function withCookies(req: NextRequest, set: Record<string, string | null>): Head
 }
 
 /**
- * 화면을 그리기 전에 로그인 토큰을 갱신한다.
- * 서버 컴포넌트는 쿠키를 설정할 수 없어서, access 토큰(30분)이 만료된 뒤에는 여기서 새로 받아 두어야 한다.
+ * Refreshes the login token before rendering the page.
+ * Server components cannot set cookies, so once the access token (30 minutes) expires, a new one must be obtained here.
  */
 export async function middleware(req: NextRequest) {
   const refresh = req.cookies.get(REFRESH)?.value;
@@ -51,14 +51,14 @@ export async function middleware(req: NextRequest) {
       cache: "no-store",
     });
   } catch {
-    return NextResponse.next(); // 서버에 닿지 않으면 그대로 진행한다(화면이 오류를 보여 준다)
+    return NextResponse.next(); // If the server is unreachable, proceed as is (the page shows the error)
   }
 
   const secure = process.env.COOKIE_SECURE === "true";
   const options = { httpOnly: true, secure, sameSite: "lax" as const, path: "/" };
 
   if (res.status === 401) {
-    // 세션이 만료·폐기됐다: 쿠키를 지워 로그아웃 상태로 만든다
+    // The session expired or was revoked: clear the cookies to log the user out
     const out = NextResponse.next({ request: { headers: withCookies(req, { [ACCESS]: null, [REFRESH]: null }) } });
     out.cookies.delete(ACCESS);
     out.cookies.delete(REFRESH);
@@ -73,7 +73,7 @@ export async function middleware(req: NextRequest) {
   return out;
 }
 
-// 화면 경로에서만 돈다. API 요청은 브라우저가 apiFetch로 직접 갱신하고, 정적 파일은 건드리지 않는다.
+// Runs on page routes only. API requests are refreshed directly by the browser via apiFetch, and static files are left alone.
 export const config = {
   matcher: ["/((?!api/|_next/|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
 };

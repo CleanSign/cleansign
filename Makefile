@@ -1,21 +1,21 @@
-# Clean Sign 로컬 개발 환경
+# Clean Sign local development environment
 #
-#   make run                 DB + Ollama + AI 서버 + Go 서버 + web을 한 번에 띄운다 (Ctrl+C로 한꺼번에 종료)
-#   make run LLM=mock        Ollama 없이 키워드 분류기로 띄운다 (UI/연동 확인용, 빠름)
-#   make run PORT=3100       web 포트 변경
-#   make status              지금 무엇이 떠 있는지 본다
-#   make stop                make run으로 남은 web/서버/AI 서버를 포트로 찾아 끈다
-#   make stop-ollama         모델을 내리고 `ollama serve`를 끈다
-#   make check               Go(vet·테스트·린트) + web(타입·린트) + AI 서버 테스트
-#   make gen                 API 명세(server/api/openapi.yaml)와 SQL(queries/)에서 코드를 다시 생성한다
-#   make migration NAME=x    새 마이그레이션 파일(server/internal/database/migrations) 생성
-#   make domain NAME=article 새 도메인 뼈대 생성 (server/internal/domain·service/article)
-#   make db-reset            개발 DB(cleansign)를 지우고 다시 만든다 (데이터가 모두 사라진다)
+#   make run                 Start DB + Ollama + AI server + Go server + web at once (Ctrl+C stops everything)
+#   make run LLM=mock        Start with the keyword classifier instead of Ollama (for checking UI/integration, fast)
+#   make run PORT=3100       Change the web port
+#   make status              Show what is currently running
+#   make stop                Find and stop web/server/AI server left over from make run, by port
+#   make stop-ollama         Unload the model and stop `ollama serve`
+#   make check               Go (vet, tests, lint) + web (types, lint) + AI server tests
+#   make gen                 Regenerate code from the API spec (server/api/openapi.yaml) and SQL (queries/)
+#   make migration NAME=x    Create a new migration file (server/internal/database/migrations)
+#   make domain NAME=article Scaffold a new domain (server/internal/domain, service/article)
+#   make db-reset            Drop and recreate the dev DB (cleansign) (all data is lost)
 #
-# 변수: PORT(web) SERVER_PORT(Go 서버) AI_PORT(AI 서버) LLM(ollama|mock) MODEL(Ollama 모델) MOCK_DELAY_S(mock 지연, 진행 화면 확인용)
+# Variables: PORT(web) SERVER_PORT(Go server) AI_PORT(AI server) LLM(ollama|mock) MODEL(Ollama model) MOCK_DELAY_S(mock delay, for checking the progress screen)
 #
-# 서버 설정은 server/.env (없으면 server/.env.example을 복사), web 설정은 web/.env 입니다.
-# 로그인 인증코드는 SMTP를 설정하지 않으면 [server] 로그에 나옵니다.
+# Server settings live in server/.env (copied from server/.env.example if missing); web settings live in web/.env.
+# If SMTP is not configured, the login verification code appears in the [server] log.
 
 SHELL := /bin/bash
 PORT ?= 3000
@@ -31,7 +31,7 @@ OLLAMA_URL ?= http://localhost:11434
 help:
 	@sed -n '3,15p' Makefile | sed 's/^# \{0,1\}//'
 
-# 의존성이 없을 때만 설치한다
+# Install dependencies only when missing
 setup:
 	@[ -d web/node_modules ] || { echo "▶ npm install"; (cd web && npm install); }
 	@command -v go >/dev/null || { echo "Go가 필요해요: https://go.dev/dl/"; exit 1; }
@@ -85,24 +85,24 @@ status:
 	@printf "\n서버      "; curl -sf localhost:$(SERVER_PORT)/healthz 2>/dev/null || echo "꺼짐 (:$(SERVER_PORT))"
 	@printf "\nweb       "; lsof -nP -iTCP:$(PORT) -sTCP:LISTEN >/dev/null 2>&1 && echo "실행 중 (:$(PORT))" || echo "꺼짐 (:$(PORT))"
 
-# API 명세와 SQL에서 코드를 다시 만든다. 생성 결과는 커밋한다 (CI가 최신인지 검사한다)
+# Regenerate code from the API spec and SQL. Commit the generated output (CI checks that it is up to date)
 gen:
 	@command -v sqlc >/dev/null || { echo "sqlc가 필요해요: brew install sqlc"; exit 1; }
 	cd server && go generate ./api/ && sqlc generate
 	@[ -d web/node_modules ] || (cd web && npm install)
 	cd web && npm run -s gen:api
 
-# 새 마이그레이션 파일을 만든다 (적용은 서버가 시작할 때 자동으로 한다). 이미 적용된 파일은 고치지 말고 새로 만든다
+# Create a new migration file (the server applies it automatically on startup). Do not edit already-applied files; create a new one instead
 migration:
 	@[ -n "$(NAME)" ] || { echo "사용법: make migration NAME=add_article_table"; exit 1; }
 	@command -v goose >/dev/null || { echo "goose가 필요해요: brew install goose"; exit 1; }
 	goose -dir server/internal/database/migrations create "$(NAME)" sql
 
-# 새 도메인의 domain/service 뼈대를 만들고 다음에 할 일을 알려 준다
+# Scaffold the new domain's domain/service and print what to do next
 domain:
 	@./scripts/new-domain.sh "$(NAME)"
 
-# 개발 DB를 지우고 다시 만든다. 서버를 다시 띄우면 마이그레이션이 처음부터 적용된다
+# Drop and recreate the dev DB. Restarting the server reapplies migrations from scratch
 db-reset:
 	@docker info >/dev/null 2>&1 || { echo "Docker가 꺼져 있어요. Docker Desktop을 켜 주세요"; exit 1; }
 	@docker compose up -d --wait db
@@ -110,7 +110,7 @@ db-reset:
 	docker compose exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS cleansign WITH (FORCE)"
 	docker compose exec -T db psql -U postgres -c "CREATE DATABASE cleansign"
 
-# web/서버/AI 서버가 쓰는 포트의 리스너만 끈다 (무엇을 끄는지 먼저 보여 준다). DB와 Ollama는 건드리지 않는다.
+# Stop only the listeners on the ports used by web/server/AI server (shows what it stops first). Leaves the DB and Ollama alone.
 stop:
 	@for p in $(PORT) $(SERVER_PORT) $(AI_PORT); do \
 	  for pid in $$(lsof -nP -iTCP:$$p -sTCP:LISTEN -t 2>/dev/null); do \

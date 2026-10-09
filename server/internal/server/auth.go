@@ -15,7 +15,7 @@ import (
 
 const maxJSONBody = 1 << 20
 
-// decodeJSON은 JSON 본문을 읽는다. 읽지 못하면 요청 형식 오류다.
+// decodeJSON reads the JSON body. If it cannot be read, it is a malformed-request error.
 func decodeJSON(c echo.Context, dst any) error {
 	body := http.MaxBytesReader(c.Response(), c.Request().Body, maxJSONBody)
 	if err := json.NewDecoder(body).Decode(dst); err != nil {
@@ -50,7 +50,7 @@ func (h *handler) ConfirmEmailCode(c echo.Context) error {
 }
 
 func (h *handler) RefreshTokens(c echo.Context) error {
-	// 본문은 비어 있어도 된다(web은 쿠키로 보낸다)
+	// the body may be empty (web sends it via cookie)
 	var body api.RefreshRequest
 	if err := json.NewDecoder(io.LimitReader(c.Request().Body, maxJSONBody)).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
 		return errBadBody
@@ -66,7 +66,7 @@ func (h *handler) RefreshTokens(c echo.Context) error {
 	return h.respondTokens(c, tokens)
 }
 
-// Logout은 가진 토큰이 가리키는 세션을 폐기하고 쿠키를 지운다.
+// Logout revokes the session the held token points to and clears the cookies.
 func (h *handler) Logout(c echo.Context) error {
 	ctx := c.Request().Context()
 	tokens := []string{cookieValue(c, accessCookie), cookieValue(c, refreshCookie)}

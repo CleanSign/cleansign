@@ -12,7 +12,7 @@ from app.schemas import AnalysisResult, ClauseResult
 
 MAX_CLAUSES = 60
 
-# (단계, 완료 수, 전체 수). 단계: splitting → classifying → scoring
+# (stage, completed count, total count). Stages: splitting → classifying → scoring
 ProgressFn = Callable[[str, int, int], Awaitable[None]]
 
 
@@ -30,7 +30,7 @@ async def analyze_text(
     await report("splitting")
     warnings: list[str] = []
 
-    text = mask_pii(raw_text)  # 모델로 보내기 전에 항상 마스킹
+    text = mask_pii(raw_text)  # Always mask before sending to the model
     facts = extract_facts(text)
     if facts.deposit is None:
         warnings.append("보증금을 읽지 못해 금액 산출이 제한됩니다.")

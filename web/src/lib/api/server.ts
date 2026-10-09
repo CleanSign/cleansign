@@ -6,7 +6,7 @@ import type { ClauseDetail, Contract, ContractPage, Me } from "./types";
 
 const serverUrl = () => process.env.SERVER_URL ?? "http://localhost:4000";
 
-/** 서버 컴포넌트에서 Go 서버를 부른다. 요청의 쿠키(로그인 토큰)를 그대로 전달한다. */
+/** Calls the Go server from a server component. Forwards the request's cookies (login tokens) as is. */
 export async function serverFetch(path: string, init?: RequestInit): Promise<Response> {
   const cookie = (await cookies()).toString();
   return fetch(`${serverUrl()}${path}`, {
@@ -16,7 +16,7 @@ export async function serverFetch(path: string, init?: RequestInit): Promise<Res
   });
 }
 
-/** 로그인한 사용자. 로그인하지 않았으면 null. 같은 요청 안에서는 한 번만 부른다. */
+/** The logged-in user, or null if not logged in. Called only once per request. */
 export const getSession = cache(async (): Promise<Me | null> => {
   const res = await serverFetch("/api/v1/users/me");
   if (res.status === 401) return null;
@@ -24,7 +24,7 @@ export const getSession = cache(async (): Promise<Me | null> => {
   return res.json();
 });
 
-/** 로그인이 필요한 화면에서 쓴다. 로그인하지 않았으면 `/`로 보낸다. */
+/** Use on screens that require login. Redirects to `/` if not logged in. */
 export async function requireUser(): Promise<Me> {
   const user = await getSession();
   if (!user) redirect("/");
@@ -38,7 +38,7 @@ async function json<T>(res: Response): Promise<T> {
   return res.json();
 }
 
-/** 계약서 분석 상태와 결과. 남의 계약서나 없는 계약서는 404 화면이 된다. */
+/** Contract analysis status and result. Someone else's contract, or one that does not exist, results in a 404 screen. */
 export async function getContract(id: string): Promise<Contract> {
   return json(await serverFetch(`/api/v1/contracts/${encodeURIComponent(id)}`));
 }
@@ -47,12 +47,12 @@ export async function getClause(id: string, clauseId: string): Promise<ClauseDet
   return json(await serverFetch(`/api/v1/contracts/${encodeURIComponent(id)}/clauses/${encodeURIComponent(clauseId)}`));
 }
 
-/** 히스토리 한 페이지(최신순, 실패한 분석 포함). */
+/** One page of history (newest first, including failed analyses). */
 export async function getContractPage(page: number): Promise<ContractPage> {
   return json(await serverFetch(`/api/v1/contracts?page=${page}`));
 }
 
-/** 홈 화면의 최근 분석: 완료·진행 중만(실패 제외). */
+/** Recent analyses on the home screen: completed or in progress only (failed excluded). */
 export async function getRecentContracts(limit: number): Promise<ContractPage["items"]> {
   const page = await json<ContractPage>(await serverFetch(`/api/v1/contracts?status=active&limit=${limit}`));
   return page.items;

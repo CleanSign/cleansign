@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Analysis는 AI 서버의 분석 결과를 우리 언어로 옮긴 것이다. 금액은 원 단위다.
+// Analysis is the AI server's analysis result translated into our own terms. Amounts are in won.
 type Analysis struct {
 	RiskScore     int32
 	Grade         Severity
@@ -32,8 +32,8 @@ type AnalysisClause struct {
 	SafeText     string
 }
 
-// Result는 분석이 끝났을 때 계약서에 채워 넣는 값이다.
-// 파일 이름 등 업로드 시점에 정해진 값은 포함하지 않는다.
+// Result holds the values filled into a contract when analysis finishes.
+// It does not include values fixed at upload time, such as the file name.
 type Result struct {
 	LossAmount    int32
 	RiskScore     int32
@@ -46,7 +46,7 @@ type Result struct {
 	RiskFlow      json.RawMessage
 }
 
-// ResultFrom은 분석 결과에서 계약서에 채울 값을 만든다.
+// ResultFrom builds the values to fill into a contract from an analysis result.
 func ResultFrom(a Analysis) Result {
 	warnings := a.Warnings
 	if warnings == nil {
@@ -65,7 +65,7 @@ func ResultFrom(a Analysis) Result {
 	}
 }
 
-// ClausesFrom은 분석 결과의 위험 조항을 저장할 형태로 바꾼다. ID는 호출하는 쪽에서 채운다.
+// ClausesFrom converts the risk clauses of an analysis result into a storable form. The caller fills in the IDs.
 func ClausesFrom(contractID string, a Analysis) []Clause {
 	out := make([]Clause, len(a.Clauses))
 	for i, c := range a.Clauses {

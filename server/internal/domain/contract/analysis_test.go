@@ -9,7 +9,7 @@ func sampleAnalysis() Analysis {
 		Grade:         SeverityHigh,
 		LossAmount:    50_000_000,
 		LossMin:       20_000_000,
-		LossMax:       9_000_000_000, // 상한을 넘는다
+		LossMax:       9_000_000_000, // exceeds the upper limit
 		Deposit:       &deposit,
 		Warnings:      nil,
 		ModelVersion:  "gemma4:12b",
@@ -59,7 +59,7 @@ func TestClausesFrom(t *testing.T) {
 	if cl[0].LossAmount != 40 || cl[0].LawReference[1] != "민법 제2조" {
 		t.Errorf("첫 조항: %+v", cl[0])
 	}
-	if cl[1].LossAmount != 0 { // 음수는 0으로
+	if cl[1].LossAmount != 0 { // negative becomes 0
 		t.Errorf("음수 손실은 0이어야 한다: %d", cl[1].LossAmount)
 	}
 	if *cl[1].LMax != 2_147_483_647 {

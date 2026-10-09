@@ -1,4 +1,4 @@
-// Package app는 모든 계층을 조립한다(수동 DI). 계층 전부를 알아도 되는 유일한 곳이다.
+// Package app wires all layers together (manual DI). It is the only place allowed to know every layer.
 package app
 
 import (
@@ -27,11 +27,11 @@ const (
 	housekeepingInterval = time.Minute
 	httpShutdownGrace    = 10 * time.Second
 	analysisShutdownWait = 30 * time.Second
-	// 분석 작업의 전체 제한은 AI 서버 대기 시간에 저장 시간 여유를 더한다.
+	// The overall limit for an analysis job is the AI server wait time plus slack for saving.
 	analysisSaveMargin = time.Minute
 )
 
-// Overrides는 테스트에서 외부 연동을 가짜로 바꿀 때 쓴다. 비워 두면 실제 구현을 쓴다.
+// Overrides replaces external integrations with fakes in tests. Leave empty to use the real implementations.
 type Overrides struct {
 	Analyzer contractsvc.Analyzer
 	Mailer   authsvc.Mailer
@@ -47,7 +47,7 @@ type App struct {
 	log  *slog.Logger
 }
 
-// New는 DB에 연결해 마이그레이션을 적용하고 서버를 조립한다.
+// New connects to the DB, applies migrations, and assembles the server.
 func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error) {
 	pool, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -61,7 +61,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	return Build(pool, cfg, log, Overrides{}), nil
 }
 
-// Build는 이미 준비된 DB 풀 위에서 서버를 조립한다.
+// Build assembles the server on top of an already prepared DB pool.
 func Build(pool *pgxpool.Pool, cfg config.Config, log *slog.Logger, o Overrides) *App {
 	clk := o.Clock
 	if clk == nil {
@@ -97,7 +97,7 @@ func Build(pool *pgxpool.Pool, cfg config.Config, log *slog.Logger, o Overrides)
 	return &App{Echo: e, Contracts: contractService, Auth: authService, pool: pool, log: log}
 }
 
-// Run은 서버를 띄우고 ctx가 끝나면 진행 중인 요청과 분석을 기다린 뒤 정리한다.
+// Run starts the server and, once ctx ends, waits for in-flight requests and analyses before cleaning up.
 func (a *App) Run(ctx context.Context, port string) error {
 	housekeepingCtx, stopHousekeeping := context.WithCancel(context.Background())
 	housekeepingDone := make(chan struct{})
@@ -137,7 +137,7 @@ func (a *App) Run(ctx context.Context, port string) error {
 	return runErr
 }
 
-// housekeeping은 서버가 내려가며 사라진 분석과 만료된 인증 데이터를 주기적으로 정리한다.
+// housekeeping periodically cleans up analyses lost when the server went down and expired auth data.
 func (a *App) housekeeping(ctx context.Context) {
 	run := func() {
 		if err := a.Contracts.SweepStale(ctx); err != nil && ctx.Err() == nil {
@@ -160,5 +160,5 @@ func (a *App) housekeeping(ctx context.Context) {
 	}
 }
 
-// PoolForTest는 통합 테스트에서 상태를 직접 조작할 수 있게 풀을 돌려준다.
+// PoolForTest returns the pool so integration tests can manipulate state directly.
 func (a *App) PoolForTest() *pgxpool.Pool { return a.pool }

@@ -11,7 +11,7 @@ _lock = threading.Lock()
 
 
 def _get_engine():
-    """RapidOCR(PP-OCRv5 한글 인식 모델, onnxruntime). 처음 쓸 때 한 번만 올리고, 모델 파일은 첫 실행 때 내려받는다."""
+    """RapidOCR (PP-OCRv5 Korean recognition model, onnxruntime). Loaded once on first use; the model files are downloaded on first run."""
     global _engine
     with _lock:
         if _engine is None:
@@ -29,7 +29,7 @@ def _get_engine():
 
 
 def ocr_pdf(data: bytes, max_pages: int, scale: float = 2.5, on_page: Callable[[int, int], None] | None = None) -> str:
-    """텍스트 층이 없는 PDF를 쪽마다 이미지로 그려 한글 OCR로 읽는다. 앞쪽 max_pages쪽까지만 읽는다."""
+    """Render each page of a PDF with no text layer as an image and read it with Korean OCR. Reads only up to the first max_pages pages."""
     import numpy as np
 
     pdf = pdfium.PdfDocument(data)

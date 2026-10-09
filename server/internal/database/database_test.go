@@ -76,7 +76,7 @@ func TestCodeAndSessionRepos(t *testing.T) {
 	if err != nil || got.Attempts != 2 || got.CodeHash != "h1" || !got.SentAt.Equal(now) {
 		t.Errorf("코드 조회: %+v %v", got, err)
 	}
-	// 다시 보내면 덮어쓰고 시도 횟수는 0으로 돌아간다
+	// resending overwrites and the attempt count resets to 0
 	codes.Upsert(ctx, auth.EmailCode{Email: "a@b.com", CodeHash: "h2", SentAt: now, ExpiresAt: now.Add(5 * time.Minute)})
 	if got, _ := codes.Get(ctx, "a@b.com"); got.CodeHash != "h2" || got.Attempts != 0 {
 		t.Errorf("덮어쓰기: %+v", got)
@@ -186,7 +186,7 @@ func TestContractLifecycle(t *testing.T) {
 		t.Errorf("confidence: %v", *clauses[0].Confidence)
 	}
 
-	// 삭제하면 조항도 함께 지워진다
+	// deleting also deletes the clauses
 	if ok, err := repo.Delete(ctx, "u2", "k1"); err != nil || ok {
 		t.Errorf("남의 계약서 삭제: %v %v", ok, err)
 	}
@@ -221,7 +221,7 @@ func TestCompleteIsAtomic(t *testing.T) {
 	repo.Create(ctx, pending("k1", "u1"))
 
 	bad := clause("k1", 0)
-	bad.Severity = "unknown-severity" // enum 위반으로 조항 저장이 실패한다
+	bad.Severity = "unknown-severity" // an enum violation makes the clause save fail
 	if saved, err := repo.Complete(ctx, "k1", contract.Result{Grade: contract.SeverityLow}, []contract.Clause{bad}); err == nil || saved {
 		t.Fatalf("실패해야 한다: %v %v", saved, err)
 	}
@@ -245,7 +245,7 @@ func TestFailAndStale(t *testing.T) {
 		t.Errorf("failed 상태: %+v", got)
 	}
 
-	// 방금 만든 계약서는 기준 시각보다 새로워서 바뀌지 않는다
+	// a contract just created is newer than the cutoff, so it is not changed
 	repo.FailIfStale(ctx, "k2", time.Now().Add(-time.Hour), "stale")
 	if got, _ := repo.Get(ctx, "u1", "k2"); got.Status != contract.StatusPending {
 		t.Errorf("새 계약서는 stale이 아니다: %v", got.Status)
@@ -267,7 +267,7 @@ func TestPageAndRecent(t *testing.T) {
 	newUser(t, database.NewUserRepo(pool), "u2", "c@d.com")
 	repo := database.NewContractRepo(pool)
 
-	// k1 완료(조항 2개) → k2 실패 → k3 진행 중 순서로 만든다 (최신순이면 k3, k2, k1)
+	// create in this order: k1 completed (2 clauses) -> k2 failed -> k3 in progress (newest first: k3, k2, k1)
 	for _, id := range []string{"k1", "k2", "k3"} {
 		repo.Create(ctx, pending(id, "u1"))
 		time.Sleep(5 * time.Millisecond)

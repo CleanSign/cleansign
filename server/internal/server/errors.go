@@ -13,7 +13,7 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/shared/errs"
 )
 
-// httpError는 요청 형식 오류처럼 HTTP 계층에서만 생기는 오류다.
+// httpError is an error that arises only in the HTTP layer, such as a malformed request.
 type httpError struct {
 	status  int
 	message string
@@ -27,7 +27,7 @@ var errBadBody = badRequest("요청 형식이 올바르지 않아요")
 
 const internalMessage = "서버에 문제가 생겼어요"
 
-// errorHandler는 모든 오류를 { "error": "<메시지>" } 모양의 응답으로 바꾼다.
+// errorHandler turns every error into a response shaped like { "error": "<message>" }.
 func (h *handler) errorHandler(err error, c echo.Context) {
 	if c.Response().Committed {
 		return
@@ -39,7 +39,7 @@ func (h *handler) errorHandler(err error, c echo.Context) {
 
 	var retry *auth.RetryAfterError
 	if errors.As(err, &retry) {
-		secs := int((retry.After + 999_999_999) / 1_000_000_000) // 올림
+		secs := int((retry.After + 999_999_999) / 1_000_000_000) // round up
 		c.Response().Header().Set(echo.HeaderRetryAfter, strconv.Itoa(max(secs, 1)))
 	}
 	if c.Request().Method == http.MethodHead {
@@ -51,7 +51,7 @@ func (h *handler) errorHandler(err error, c echo.Context) {
 	}
 }
 
-// classify는 오류를 HTTP 상태와 사용자에게 보여 줄 메시지로 바꾼다.
+// classify turns an error into an HTTP status and a message to show the user.
 func classify(err error) (int, string) {
 	var (
 		he    *httpError

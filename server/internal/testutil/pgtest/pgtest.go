@@ -1,5 +1,5 @@
-// Package pgtest는 테스트마다 비어 있는 임시 데이터베이스를 만들어 준다.
-// 관리자 접속 주소는 TEST_DATABASE_URL(기본: 로컬 docker compose의 Postgres)이고, 닿지 않으면 테스트를 건너뛴다.
+// Package pgtest creates an empty temporary database for each test.
+// The admin connection URL is TEST_DATABASE_URL (default: Postgres from the local docker compose); if unreachable, the test is skipped.
 package pgtest
 
 import (
@@ -20,7 +20,7 @@ import (
 
 const defaultAdminURL = "postgres://postgres:mysecretpassword@localhost:5433/postgres?sslmode=disable"
 
-// New는 마이그레이션이 적용된 임시 DB의 풀을 돌려주고, 테스트가 끝나면 지운다.
+// New returns a pool for a temporary DB with migrations applied, and drops it when the test ends.
 func New(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	adminURL := os.Getenv("TEST_DATABASE_URL")

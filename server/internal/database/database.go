@@ -1,4 +1,4 @@
-// Package database는 Postgres 연결, 마이그레이션, 리포지토리(포트 구현)를 담는다.
+// Package database holds the Postgres connection, migrations, and repositories (port implementations).
 package database
 
 import (
@@ -20,7 +20,7 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// Open은 커넥션 풀을 만들고 연결을 확인한다.
+// Open creates the connection pool and verifies the connection.
 func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, url)
 	if err != nil {
@@ -33,7 +33,7 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// Migrate는 아직 적용하지 않은 마이그레이션을 모두 적용한다.
+// Migrate applies all migrations that have not been applied yet.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	sub, err := fs.Sub(migrationsFS, "migrations")
 	if err != nil {
@@ -52,7 +52,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// notFound는 "행이 없음"을 계층 공용 오류로 바꾼다.
+// notFound turns "no row" into the shared cross-layer error.
 func notFound(err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return errs.ErrNotFound
@@ -60,5 +60,5 @@ func notFound(err error) error {
 	return err
 }
 
-// queries는 풀 위에서 쿼리를 실행한다. 트랜잭션이 필요하면 WithTx를 쓴다.
+// queries runs queries on the pool. Use WithTx when a transaction is needed.
 func queries(pool *pgxpool.Pool) *sqlc.Queries { return sqlc.New(pool) }

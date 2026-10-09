@@ -1,6 +1,6 @@
-# 로컬/배포 확인용 전체 스택. 개발할 때는 `make run` (DB만 컨테이너, 나머지는 로컬 프로세스).
+# Full stack for local/deployment checks. For development use `make run` (only the DB runs in a container; the rest are local processes).
 #   docker compose up --build              # db + server + ai-service + web
-#   docker compose up -d --wait db         # DB만
+#   docker compose up -d --wait db         # DB only
 services:
   db:
     image: postgres:17
@@ -47,7 +47,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # 컨테이너에서는 기본을 mock으로 둔다. 호스트의 Ollama를 쓰려면 LLM_PROVIDER=ollama
+      # In the container, default to mock. To use the host's Ollama, set LLM_PROVIDER=ollama
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:12b}
@@ -57,7 +57,7 @@ services:
     build:
       context: ./web
       args:
-        # rewrites는 빌드 시점에 고정된다
+        # rewrites are fixed at build time
         SERVER_URL: http://server:4000
     ports:
       - "3000:3000"

@@ -1,5 +1,5 @@
-"""표준계약서 정상 조항(normal_clauses_standard.csv)을 분류기에 넣어 오탐(정상→위험)을 센다.
-사용: FAST=1 python3 normal_probe.py [모델명]"""
+"""Feed the normal clauses of the standard contract (normal_clauses_standard.csv) to the classifier and count false positives (normal -> risky).
+Usage: FAST=1 python3 normal_probe.py [model name]"""
 import csv, os, sys, pathlib
 os.environ.setdefault("FAST", "1")
 sys.argv = [sys.argv[0], *(sys.argv[1:2] or ["gemma4:12b"]), "v1"]

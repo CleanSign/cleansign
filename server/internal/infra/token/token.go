@@ -1,4 +1,4 @@
-// Package token은 HS256 JWT로 access/refresh 토큰을 만들고 검증한다.
+// Package token creates and verifies access/refresh tokens as HS256 JWTs.
 package token
 
 import (
@@ -56,8 +56,8 @@ func (i *Issuer) sign(userID, sessionID string, kind svc.TokenKind, issuedAt, ex
 	return signed, nil
 }
 
-// Parse는 서명을 검증하고 토큰의 값을 돌려준다.
-// ignoreExpiry가 true면 만료만 무시한다(로그아웃처럼 만료된 토큰도 세션을 가리키기만 하면 되는 경우).
+// Parse verifies the signature and returns the token's values.
+// If ignoreExpiry is true, only expiry is ignored (e.g. logout, where an expired token only needs to point to a session).
 func (i *Issuer) Parse(token string, ignoreExpiry bool) (svc.Claims, error) {
 	opts := []jwt.ParserOption{
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
@@ -76,7 +76,7 @@ func (i *Issuer) Parse(token string, ignoreExpiry bool) (svc.Claims, error) {
 	if err != nil {
 		return svc.Claims{}, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
-	if ignoreExpiry && c.Issuer != issuer { // WithoutClaimsValidation은 발급자 검사도 건너뛴다
+	if ignoreExpiry && c.Issuer != issuer { // WithoutClaimsValidation also skips the issuer check
 		return svc.Claims{}, ErrInvalid
 	}
 	if c.Subject == "" || c.SessionID == "" || (c.Kind != svc.KindAccess && c.Kind != svc.KindRefresh) {

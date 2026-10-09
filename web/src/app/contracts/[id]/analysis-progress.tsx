@@ -6,7 +6,7 @@ import { apiFetch } from "@/lib/api/client";
 
 type Progress = { stage: string; done: number; total: number } | null;
 
-// 서버가 알려 주는 실제 처리 단계. 진행률 막대가 아니라 지금 하는 일을 보여 준다.
+// The actual processing stage reported by the server. Shows what is happening now, not a progress bar.
 const STAGES = ["reading", "ocr", "splitting", "classifying", "scoring"] as const;
 const LABEL: Record<string, string> = {
   reading: "계약서를 읽는 중",
@@ -34,7 +34,7 @@ export function AnalysisProgress({ id, initial }: { id: string; initial: Progres
         if (data.status === "pending") {
           setProgress(data.progress);
         } else {
-          router.refresh(); // completed 또는 failed: 서버 컴포넌트가 결과/오류 화면을 그린다
+          router.refresh(); // completed or failed: the server component renders the result/error screen
           return;
         }
       } catch {

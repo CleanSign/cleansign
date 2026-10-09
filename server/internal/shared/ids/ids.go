@@ -1,4 +1,4 @@
-// Package ids는 새 식별자를 만든다.
+// Package ids creates new identifiers.
 package ids
 
 import "github.com/google/uuid"

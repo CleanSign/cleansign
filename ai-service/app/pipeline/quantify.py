@@ -1,4 +1,4 @@
-"""정량화: 순수 함수. LLM을 쓰지 않는다 (data/labeling/README.md 3번 규칙의 L_max 공식, docs 6-5)."""
+"""Quantification: pure functions, no LLM (L_max formula from rule 3 of data/labeling/README.md, docs 6-5)."""
 import math
 
 from app import policy
@@ -23,7 +23,7 @@ def l_max(clause_type: str, facts: Facts) -> tuple[int, LMaxFormula]:
     elif formula == "RENEWAL_BLOCK":
         monthly = facts.monthly_rent if facts.monthly_rent else deposit * policy.JEONSE_TO_MONTHLY_RATE
         value = policy.RENEWAL_MOVING_COST + policy.RENEWAL_BROKERAGE + monthly * policy.RENEWAL_VACANCY_MONTHS
-    else:  # SENIOR_LIEN, OTHER_CAP: 근저당액 등 입력이 없으면 보증금 전액이 fallback (README 3번 규칙)
+    else:  # SENIOR_LIEN, OTHER_CAP: if there is no input such as the mortgage amount, the fallback is the full deposit (README rule 3)
         value = deposit
     return int(value), formula
 
@@ -55,7 +55,7 @@ def severity(expected: int, deposit: int | None) -> Grade:
 
 
 def contract_score(weights: list[float]) -> int:
-    """noisy-OR: 조항이 늘면 오르지만 100을 넘지 않는다."""
+    """noisy-OR: rises as clauses increase but never exceeds 100."""
     survive = math.prod(1 - min(1.0, max(0.0, w)) for w in weights)
     return round(100 * (1 - survive))
 

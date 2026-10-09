@@ -1,4 +1,4 @@
-// Package user는 사용자 정보와 약관 동의의 흐름을 조립한다.
+// Package user assembles the flow for user info and terms consent.
 package user
 
 import (
@@ -9,7 +9,7 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/shared/ids"
 )
 
-// Repository는 사용자 저장소 포트다. 없으면 errs.ErrNotFound를 돌려준다.
+// Repository is the user store port. It returns errs.ErrNotFound if missing.
 type Repository interface {
 	GetByID(ctx context.Context, id string) (user.User, error)
 	CreateConsent(ctx context.Context, c user.Consent) (user.Consent, error)
@@ -24,12 +24,12 @@ func NewService(repo Repository, clk clock.Clock) *Service {
 	return &Service{repo: repo, clock: clk}
 }
 
-// Me는 로그인한 사용자의 정보를 돌려준다.
+// Me returns the logged-in user's info.
 func (s *Service) Me(ctx context.Context, userID string) (user.User, error) {
 	return s.repo.GetByID(ctx, userID)
 }
 
-// RecordConsent는 약관 동의를 저장한다. 이용약관과 개인정보처리방침은 필수다.
+// RecordConsent saves the terms consent. The terms of service and privacy policy are required.
 func (s *Service) RecordConsent(ctx context.Context, userID string, terms, privacy, marketing bool) (user.Consent, error) {
 	if err := user.ValidateConsent(terms, privacy); err != nil {
 		return user.Consent{}, err

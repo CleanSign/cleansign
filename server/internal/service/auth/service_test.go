@@ -72,8 +72,8 @@ func (f *fakeStore) DeleteExpired(_ context.Context, now time.Time) (int64, erro
 	return n, nil
 }
 
-// codeRepo/userStore/sessionRepo는 같은 fakeStore를 서로 다른 포트로 보여 주는 얇은 껍데기다.
-// (Get, Delete 등 이름이 겹쳐서 한 타입으로 세 포트를 구현할 수 없다. 코드 포트는 fakeStore의 메서드를 그대로 쓴다)
+// codeRepo/userStore/sessionRepo are thin wrappers exposing the same fakeStore as different ports.
+// (Names like Get and Delete collide, so one type cannot implement three ports. The code port uses fakeStore's methods directly)
 type codeRepo struct{ *fakeStore }
 
 type userStore struct{ *fakeStore }
@@ -140,7 +140,7 @@ func (s sessionRepo) DeleteExpired(_ context.Context, now time.Time) (int64, err
 	return n, nil
 }
 
-// fakeMailer는 보낸 코드를 기억한다.
+// fakeMailer remembers the code it sent.
 type fakeMailer struct {
 	last string
 	to   string
@@ -155,7 +155,7 @@ func (m *fakeMailer) SendCode(_ context.Context, to, code string, _ time.Duratio
 	return nil
 }
 
-// fakeTokens는 "kind|user|session|exp" 형태의 가짜 토큰을 만든다.
+// fakeTokens creates fake tokens of the form "kind|user|session|exp".
 type fakeTokens struct{ now func() time.Time }
 
 func (f fakeTokens) Access(userID, sessionID string, now time.Time) (string, time.Time, error) {
@@ -212,19 +212,19 @@ func TestSendCode(t *testing.T) {
 		t.Error("코드는 해시로만 저장한다")
 	}
 
-	// 쿨다운 안에서는 다시 보낼 수 없다
+	// cannot resend within the cooldown
 	f.clk.Advance(10 * time.Second)
 	var retry *auth.RetryAfterError
 	if _, err := f.svc.SendCode(ctx, "user@example.com"); !errors.As(err, &retry) || retry.After != 50*time.Second {
 		t.Errorf("쿨다운 오류: %v", err)
 	}
-	// 쿨다운이 지나면 새 코드를 보내고 이전 코드는 무효가 된다
+	// after the cooldown, a new code is sent and the old code becomes invalid
 	old := f.mail.last
 	f.clk.Advance(51 * time.Second)
 	if _, err := f.svc.SendCode(ctx, "user@example.com"); err != nil {
 		t.Fatalf("재발송: %v", err)
 	}
-	if old != f.mail.last { // 우연히 같은 코드가 나온 경우는 건너뛴다
+	if old != f.mail.last { // skip if the same code happened to come up
 		if _, err := f.svc.Confirm(ctx, "user@example.com", old, false); !errors.Is(err, auth.ErrCodeInvalid) {
 			t.Errorf("이전 코드는 거절돼야 한다: %v", err)
 		}
@@ -265,7 +265,7 @@ func TestConfirmSignsUpAndLogsIn(t *testing.T) {
 		t.Errorf("refresh 수명 72시간: %v", res.Tokens.RefreshExpiresAt)
 	}
 
-	// 같은 이메일로 다시 로그인하면 같은 사용자다
+	// logging in again with the same email gives the same user
 	f.clk.Advance(2 * time.Minute)
 	f.svc.SendCode(ctx, "new@user.com")
 	again, err := f.svc.Confirm(ctx, "new@user.com", f.mail.last, true)
@@ -300,7 +300,7 @@ func TestConfirmRejections(t *testing.T) {
 		t.Errorf("시도 초과면 맞는 코드도 거절: %v", err)
 	}
 
-	// 만료
+	// expiry
 	f.clk.Advance(auth.ResendCooldown + time.Second)
 	f.svc.SendCode(ctx, "a@b.com")
 	f.clk.Advance(auth.CodeTTL)
@@ -338,7 +338,7 @@ func TestAuthenticateRefreshLogout(t *testing.T) {
 		t.Errorf("access 토큰으로 갱신할 수 없다: %v", err)
 	}
 
-	// access가 만료된 뒤에도 refresh로 새 access를 받는다. refresh 토큰은 그대로다
+	// even after access expires, refresh yields a new access. The refresh token stays the same
 	f.clk.Advance(auth.AccessTTL + time.Minute)
 	if _, _, err := f.svc.Authenticate(ctx, res.Tokens.Access); !errors.Is(err, errs.ErrUnauthorized) {
 		t.Errorf("만료된 access: %v", err)
@@ -351,7 +351,7 @@ func TestAuthenticateRefreshLogout(t *testing.T) {
 		t.Errorf("새 access는 유효해야 한다: %v", err)
 	}
 
-	// 로그아웃하면 두 토큰 모두 쓸 수 없다. 만료된 토큰으로도 로그아웃할 수 있다
+	// after logout neither token can be used. Logout also works with an expired token
 	f.clk.Advance(auth.AccessTTL + time.Minute)
 	if err := f.svc.Logout(ctx, renewed.Access); err != nil {
 		t.Fatal(err)

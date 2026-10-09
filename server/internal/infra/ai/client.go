@@ -1,4 +1,4 @@
-// Package ai는 Python ai-service를 호출하는 나가는 어댑터다. Analyzer 포트를 구현한다.
+// Package ai is the outbound adapter that calls the Python ai-service. It implements the Analyzer port.
 package ai
 
 import (
@@ -21,7 +21,7 @@ import (
 	svc "github.com/CleanSign/cleansign/server/internal/service/contract"
 )
 
-// 사용자에게 그대로 보여 주는 메시지들.
+// Messages shown to the user as-is.
 const (
 	msgConnect   = "분석 서버에 연결하지 못했어요"
 	msgTimeout   = "분석이 너무 오래 걸려 중단했어요. 잠시 후 다시 시도해 주세요"
@@ -33,7 +33,7 @@ const (
 
 var _ svc.Analyzer = (*Client)(nil)
 
-// Client는 ai-service HTTP 클라이언트다.
+// Client is the ai-service HTTP client.
 type Client struct {
 	baseURL string
 	token   string
@@ -41,10 +41,10 @@ type Client struct {
 	http    *http.Client
 }
 
-// Option은 Client 설정을 바꾼다.
+// Option changes the Client settings.
 type Option func(*Client)
 
-// WithHTTPClient는 테스트 등에서 http.Client를 갈아 끼운다.
+// WithHTTPClient swaps the http.Client, e.g. in tests.
 func WithHTTPClient(h *http.Client) Option {
 	return func(c *Client) {
 		if h != nil {
@@ -53,13 +53,13 @@ func WithHTTPClient(h *http.Client) Option {
 	}
 }
 
-// New는 클라이언트를 만든다. timeout은 요청 전체(스트림 읽기 포함)의 제한 시간이다.
+// New creates a client. timeout is the time limit for the whole request (including reading the stream).
 func New(baseURL, internalToken string, timeout time.Duration, opts ...Option) *Client {
 	c := &Client{
 		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   internalToken,
 		timeout: timeout,
-		// 제한 시간은 context로 걸기 때문에 http.Client.Timeout은 쓰지 않는다.
+		// The time limit is applied via context, so http.Client.Timeout is not used.
 		http: &http.Client{},
 	}
 	for _, o := range opts {
@@ -68,8 +68,8 @@ func New(baseURL, internalToken string, timeout time.Duration, opts ...Option) *
 	return c
 }
 
-// Analyze는 PDF를 보내고 NDJSON 스트림을 읽으며 진행 상황을 알린 뒤 결과를 돌려준다.
-// 실패는 모두 *svc.AnalysisError다. 단, onProgress가 돌려준 오류는 그대로 돌려준다.
+// Analyze sends the PDF, reads the NDJSON stream while reporting progress, and returns the result.
+// All failures are *svc.AnalysisError, except that an error returned by onProgress is returned as-is.
 func (c *Client) Analyze(ctx context.Context, fileName string, pdf []byte, onProgress svc.ProgressFunc) (domain.Analysis, error) {
 	var zero domain.Analysis
 
@@ -100,7 +100,7 @@ func (c *Client) Analyze(ctx context.Context, fileName string, pdf []byte, onPro
 	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode == http.StatusUnprocessableEntity {
-		// 스캔본 등 읽지 못한 경우. detail은 사용자에게 그대로 보여 줘도 된다.
+		// Unreadable input such as a scanned copy. detail can be shown to the user as-is.
 		var b struct {
 			Detail any `json:"detail"`
 		}
@@ -117,7 +117,7 @@ func (c *Client) Analyze(ctx context.Context, fileName string, pdf []byte, onPro
 		return zero, &svc.AnalysisError{Message: msgGeneric, Err: fmt.Errorf("ai-service %d: %s", res.StatusCode, snippet(raw))}
 	}
 
-	// 결과 이벤트에 분석 전체가 실려 한 줄이 수백 KB가 될 수 있어 Scanner 대신 Reader를 쓴다.
+	// The result event carries the whole analysis, so one line can be hundreds of KB; use a Reader instead of a Scanner.
 	r := bufio.NewReaderSize(res.Body, 64<<10)
 	for {
 		line, rerr := r.ReadBytes('\n')
@@ -154,14 +154,14 @@ func (c *Client) Analyze(ctx context.Context, fileName string, pdf []byte, onPro
 			return zero, transportError(ctx, rerr)
 		}
 	}
-	// 정상 종료로 보여도 제한 시간이 지났다면 시간 초과가 원인이다.
+	// Even if it looks like a normal end, a passed time limit means timeout is the cause.
 	if reqCtx.Err() != nil {
 		return zero, transportError(ctx, reqCtx.Err())
 	}
 	return zero, &svc.AnalysisError{Message: msgNoResult}
 }
 
-// buildMultipart는 file 파트 하나짜리 multipart 본문을 메모리에 만든다(PDF는 10MB 이하).
+// buildMultipart builds a multipart body with a single file part in memory (PDFs are 10MB or less).
 func buildMultipart(fileName string, pdf []byte) (*bytes.Reader, string, error) {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
@@ -185,8 +185,8 @@ var quoteEscaper = strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\r", "", "\n", "")
 
 func escapeQuotes(s string) string { return quoteEscaper.Replace(s) }
 
-// transportError는 전송·읽기 오류를 사용자 메시지로 분류한다.
-// 호출한 쪽이 취소했다면 중단, 제한 시간이면 시간 초과, 나머지는 연결 실패다.
+// transportError classifies transport/read errors into user messages.
+// If the caller canceled, it is a cancellation; if the time limit passed, a timeout; otherwise a connection failure.
 func transportError(parent context.Context, err error) error {
 	if errors.Is(parent.Err(), context.Canceled) {
 		return &svc.AnalysisError{Message: msgCanceled, Err: parent.Err()}
@@ -206,7 +206,7 @@ func snippet(b []byte) string {
 	return s
 }
 
-// ---- 와이어 형식 ----
+// ---- wire format ----
 
 type event struct {
 	Type     string          `json:"type"`
@@ -245,7 +245,7 @@ type wireClause struct {
 	SafeText     string   `json:"safeText"`
 }
 
-// round는 TS의 Math.round처럼 금액을 원 단위 정수로 바꾼다.
+// round converts an amount to an integer in won, like TS's Math.round.
 func round(v float64) int64 { return int64(math.Round(v)) }
 
 func decodeAnalysis(raw json.RawMessage) (domain.Analysis, error) {
@@ -271,7 +271,7 @@ func decodeAnalysis(raw json.RawMessage) (domain.Analysis, error) {
 		d := round(*w.Facts.Deposit)
 		a.Deposit = &d
 	}
-	// JSON null은 RawMessage에 "null"로 남으므로 nil로 되돌린다.
+	// JSON null remains as "null" in RawMessage, so convert it back to nil.
 	if f := bytes.TrimSpace(w.Flow); len(f) > 0 && !bytes.Equal(f, []byte("null")) {
 		a.Flow = append(json.RawMessage(nil), f...)
 	}

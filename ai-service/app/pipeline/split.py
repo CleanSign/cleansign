@@ -1,6 +1,6 @@
 import re
 
-# "제1조", "1.", "①", "특약" 같은 조항 머리말에서 끊는다. 규칙 기반 v0.
+# Split at clause headers such as "제1조", "1.", "①", "특약". Rule-based v0.
 HEAD = re.compile(r"(?m)^\s*(?:제\s*\d+\s*조|\d{1,2}\s*[.)]\s|[①-⑳]|[-•·]\s)")
 MIN_LEN = 8
 MAX_LEN = 600

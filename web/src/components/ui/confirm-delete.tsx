@@ -6,7 +6,7 @@ import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Button } from "./button";
 import { apiFetch } from "@/lib/api/client";
 
-/** 계약서 삭제 버튼 + 확인창(Base UI AlertDialog). 지운 뒤 `redirectTo`로 이동한다. */
+/** Contract delete button + confirmation dialog (Base UI AlertDialog). Navigates to `redirectTo` after deleting. */
 export function ConfirmDelete({
   contractId,
   redirectTo = "/contracts",

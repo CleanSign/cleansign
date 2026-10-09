@@ -1,4 +1,4 @@
-"""server(Go)와 주고받는 JSON 계약. docs/06-ai-analysis-plan.md 6-2와 같은 모양(camelCase)."""
+"""JSON contract exchanged with the server (Go). Same shape as docs/06-ai-analysis-plan.md 6-2 (camelCase)."""
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,8 +15,8 @@ class CamelModel(BaseModel):
 
 
 class Facts(CamelModel):
-    deposit: int | None = None  # 원
-    monthly_rent: int | None = None  # 원
+    deposit: int | None = None  # KRW
+    monthly_rent: int | None = None  # KRW
     lease_type: Literal["jeonse", "wolse", "unknown"] = "unknown"
 
 
@@ -31,7 +31,7 @@ class ClauseResult(CamelModel):
     expected_loss: int
     reason: str
     law_reference: list[str]
-    precedents: list[str] = []  # RAG 연결 전까지 빈 목록
+    precedents: list[str] = []  # Empty list until RAG is connected
     safe_text: str
 
 
@@ -42,7 +42,7 @@ class AnalysisResult(CamelModel):
     loss_range: tuple[int, int]
     facts: Facts
     clauses: list[ClauseResult]
-    flow: dict | None = None  # 위험 흐름도: 아직 생성하지 않음
+    flow: dict | None = None  # Risk flow chart: not generated yet
     warnings: list[str] = []
     model_version: str
     policy_version: str

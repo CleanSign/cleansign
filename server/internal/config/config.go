@@ -1,4 +1,4 @@
-// Package config는 환경변수에서 서버 설정을 읽는다.
+// Package config reads server settings from environment variables.
 package config
 
 import (
@@ -35,7 +35,7 @@ type Config struct {
 
 const minSecretLen = 16
 
-// Load는 환경변수를 읽고 필수 값이 빠졌으면 무엇이 문제인지 알려 준다.
+// Load reads environment variables and reports what is wrong if a required value is missing.
 func Load() (Config, error) { return load(os.Getenv) }
 
 func load(get func(string) string) (Config, error) {

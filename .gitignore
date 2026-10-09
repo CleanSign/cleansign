@@ -13,3 +13,7 @@
 # server (Go) build output
 /server/bin/
 /server/tmp/
+
+# Python bytecode
+__pycache__/
+*.pyc

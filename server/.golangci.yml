@@ -9,8 +9,8 @@ linters:
     - depguard
   settings:
     depguard:
-      # 어니언 경계: domain ← service ← (server, database, infra). 바깥 계층끼리는 서로 모른다.
-      # list-mode strict: allow에 없는 import는 모두 금지다.
+      # Onion boundary: domain <- service <- (server, database, infra). Outer layers don't know about each other.
+      # list-mode strict: any import not in allow is forbidden.
       rules:
         domain:
           list-mode: strict
@@ -85,7 +85,7 @@ linters:
 
   exclusions:
     rules:
-      # 테스트에서는 정리 호출의 반환값을 일일이 검사하지 않는다
+      # In tests, return values of cleanup calls are not checked one by one
       - path: _test\.go
         linters: [errcheck]
     paths:

@@ -1,4 +1,4 @@
-// Package user는 사용자와 약관 동의의 순수한 데이터와 규칙을 담는다.
+// Package user contains the pure data and rules for users and terms consent.
 package user
 
 import (
@@ -16,7 +16,7 @@ type User struct {
 	CreatedAt     time.Time
 }
 
-// Consent는 가입 시 받은 약관 동의다.
+// Consent is the terms consent given at sign-up.
 type Consent struct {
 	ID        string
 	UserID    string
@@ -33,14 +33,14 @@ var (
 
 const maxEmailLen = 254
 
-// NormalizeEmail은 공백을 없애고 소문자로 바꾼 뒤 형식을 확인한다.
+// NormalizeEmail trims whitespace, lowercases, and then validates the format.
 func NormalizeEmail(raw string) (string, error) {
 	s := strings.ToLower(strings.TrimSpace(raw))
 	if s == "" || len(s) > maxEmailLen {
 		return "", ErrInvalidEmail
 	}
 	addr, err := mail.ParseAddress(s)
-	// "이름 <a@b.c>" 같은 형태를 막기 위해 입력과 주소가 같아야 한다
+	// The input must equal the parsed address to reject forms like "Name <a@b.c>"
 	if err != nil || addr.Address != s {
 		return "", ErrInvalidEmail
 	}
@@ -51,7 +51,7 @@ func NormalizeEmail(raw string) (string, error) {
 	return s, nil
 }
 
-// ValidateConsent는 필수 동의(이용약관, 개인정보처리방침)를 모두 받았는지 확인한다.
+// ValidateConsent checks that all required consents (terms of service, privacy policy) were given.
 func ValidateConsent(terms, privacy bool) error {
 	if !terms || !privacy {
 		return ErrConsentRequired

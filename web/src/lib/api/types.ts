@@ -1,6 +1,6 @@
 import type { components } from "./schema";
 
-// server/api/openapi.yaml에서 생성한 타입 (npm run gen:api)
+// Types generated from server/api/openapi.yaml (npm run gen:api)
 export type Contract = components["schemas"]["Contract"];
 export type RiskItem = components["schemas"]["RiskItem"];
 export type ClauseDetail = components["schemas"]["ClauseDetail"];

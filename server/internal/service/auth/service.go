@@ -1,4 +1,4 @@
-// Package auth는 이메일 인증코드 로그인과 세션의 흐름을 조립한다.
+// Package auth assembles the email verification-code login and session flow.
 package auth
 
 import (
@@ -30,8 +30,8 @@ func NewService(codes CodeRepository, users UserStore, sessions SessionRepositor
 	return &Service{codes: codes, users: users, sessions: sessions, mailer: mailer, tokens: tokens, clock: clk, codeSecret: codeSecret, log: log}
 }
 
-// SendCode는 이메일로 6자리 인증코드를 보낸다. 다시 보내려면 쿨다운이 지나야 한다.
-// 돌려주는 값은 다음 요청까지 기다려야 하는 시간이다.
+// SendCode sends a 6-digit verification code by email. Resending requires the cooldown to have passed.
+// The returned value is how long to wait before the next request.
 func (s *Service) SendCode(ctx context.Context, rawEmail string) (time.Duration, error) {
 	email, err := user.NormalizeEmail(rawEmail)
 	if err != nil {
@@ -62,7 +62,7 @@ func (s *Service) SendCode(ctx context.Context, rawEmail string) (time.Duration,
 		return 0, err
 	}
 	if err := s.mailer.SendCode(ctx, email, code, auth.CodeTTL); err != nil {
-		// 보내지 못했으면 기다리지 않고 바로 다시 요청할 수 있게 지운다
+		// if sending failed, clear it so the user can request again right away without waiting
 		if delErr := s.codes.Delete(ctx, email); delErr != nil {
 			s.log.Warn("failed to delete unsent code", "error", delErr)
 		}
@@ -71,13 +71,13 @@ func (s *Service) SendCode(ctx context.Context, rawEmail string) (time.Duration,
 	return auth.ResendCooldown, nil
 }
 
-// ConfirmResult는 로그인에 성공했을 때의 결과다.
+// ConfirmResult is the result of a successful login.
 type ConfirmResult struct {
 	User   user.User
 	Tokens auth.Tokens
 }
 
-// Confirm은 인증코드를 확인하고 로그인한다. 처음 보는 이메일이면 가입시킨다.
+// Confirm verifies the code and logs in. An unseen email is signed up.
 func (s *Service) Confirm(ctx context.Context, rawEmail, code string, rememberDevice bool) (ConfirmResult, error) {
 	email, err := user.NormalizeEmail(rawEmail)
 	if err != nil {
@@ -142,11 +142,11 @@ func (s *Service) loginOrCreate(ctx context.Context, email string, now time.Time
 	created, err := s.users.Create(ctx, user.User{
 		ID:            ids.New(),
 		Email:         email,
-		EmailVerified: true, // 인증코드로 이메일을 확인했다
+		EmailVerified: true, // the email was verified by the code
 		CreatedAt:     now,
 	})
 	if err != nil {
-		// 같은 이메일로 동시에 가입한 경우: 먼저 만들어진 사용자를 쓴다
+		// concurrent signup with the same email: use the user created first
 		if again, getErr := s.users.GetByEmail(ctx, email); getErr == nil {
 			return again, nil
 		}
@@ -167,7 +167,7 @@ func (s *Service) issue(userID string, session auth.Session, now time.Time) (aut
 	return auth.Tokens{Access: access, Refresh: refresh, AccessExpiresAt: accessExp, RefreshExpiresAt: session.ExpiresAt}, nil
 }
 
-// Refresh는 refresh 토큰으로 새 access 토큰을 발급한다. refresh 토큰 자체는 바뀌지 않는다.
+// Refresh issues a new access token from the refresh token. The refresh token itself does not change.
 func (s *Service) Refresh(ctx context.Context, refreshToken string) (auth.Tokens, error) {
 	claims, err := s.tokens.Parse(refreshToken, false)
 	if err != nil || claims.Kind != KindRefresh {
@@ -184,7 +184,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (auth.Tokens
 	return auth.Tokens{Access: access, Refresh: refreshToken, AccessExpiresAt: accessExp, RefreshExpiresAt: session.ExpiresAt}, nil
 }
 
-// Authenticate는 access 토큰이 가리키는 사용자와 세션을 확인한다. 로그아웃된 세션은 거절한다.
+// Authenticate verifies the user and session the access token points to. Logged-out sessions are rejected.
 func (s *Service) Authenticate(ctx context.Context, accessToken string) (userID, sessionID string, err error) {
 	claims, err := s.tokens.Parse(accessToken, false)
 	if err != nil || claims.Kind != KindAccess {
@@ -211,8 +211,8 @@ func (s *Service) activeSession(ctx context.Context, claims Claims) (auth.Sessio
 	return session, nil
 }
 
-// Logout은 토큰이 가리키는 세션을 폐기한다. 만료된 토큰이어도 서명이 맞으면 폐기한다.
-// 이미 폐기됐거나 토큰이 없어도 오류가 아니다.
+// Logout revokes the session the token points to. Even an expired token revokes it if the signature is valid.
+// It is not an error if it was already revoked or there is no token.
 func (s *Service) Logout(ctx context.Context, token string) error {
 	if token == "" {
 		return nil
@@ -224,12 +224,12 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 	return s.sessions.Delete(ctx, claims.SessionID)
 }
 
-// RevokeAll은 사용자의 모든 세션을 폐기한다.
+// RevokeAll revokes all of the user's sessions.
 func (s *Service) RevokeAll(ctx context.Context, userID string) error {
 	return s.sessions.DeleteByUser(ctx, userID)
 }
 
-// PurgeExpired는 만료된 인증코드와 세션을 지운다.
+// PurgeExpired deletes expired verification codes and sessions.
 func (s *Service) PurgeExpired(ctx context.Context) error {
 	now := s.clock.Now()
 	codes, err := s.codes.DeleteExpired(ctx, now)

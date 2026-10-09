@@ -22,7 +22,7 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/testutil/pgtest"
 )
 
-// --- 가짜 외부 연동 ---
+// --- Fake external integrations ---
 
 type fakeMailer struct {
 	mu   sync.Mutex
@@ -36,7 +36,7 @@ func (m *fakeMailer) SendCode(_ context.Context, to, code string, _ time.Duratio
 	return nil
 }
 
-// last는 서버가 정규화(소문자)한 주소로 보낸 마지막 코드를 돌려준다.
+// last returns the last code sent to the address the server normalized (lowercased).
 func (m *fakeMailer) last(to string) string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -73,7 +73,7 @@ func (a *fakeAnalyzer) set(res contract.Analysis, err error, gate chan struct{})
 	a.result, a.err, a.gate = res, err, gate
 }
 
-// --- 테스트 환경 ---
+// --- Test environment ---
 
 type env struct {
 	t        *testing.T
@@ -152,7 +152,7 @@ func (e *env) json(method, path, token string, payload any) resp {
 
 func (e *env) get(path, token string) resp { return e.do("GET", path, token, nil, "") }
 
-// login은 이메일로 가입·로그인하고 access 토큰을 돌려준다.
+// login signs up/logs in by email and returns the access token.
 func (e *env) login(email string) string {
 	e.t.Helper()
 	if r := e.json("POST", "/api/v1/auth/email/code", "", map[string]any{"email": email}); r.Status != 200 {
@@ -187,7 +187,7 @@ func (e *env) uploadPDF(token string) string {
 	return r.Body["id"].(string)
 }
 
-// waitDone은 분석이 pending을 벗어날 때까지 기다린다.
+// waitDone waits until the analysis leaves pending.
 func (e *env) waitDone(token, id string) resp {
 	e.t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
@@ -209,7 +209,7 @@ func wantErr(t *testing.T, r resp, status int, msg string) {
 	}
 }
 
-// --- 인증 ---
+// --- Auth ---
 
 func TestAuthFlow(t *testing.T) {
 	e := newEnv(t)
@@ -252,10 +252,10 @@ func TestAuthFlow(t *testing.T) {
 	}
 	access, refresh := r.Body["accessToken"].(string), r.Body["refreshToken"].(string)
 
-	// 코드는 한 번만 쓸 수 있다
+	// a code can be used only once
 	wantErr(t, e.json("POST", "/api/v1/auth/email/confirm", "", map[string]any{"email": "user@example.com", "code": code}), 400, "인증코드가 만료됐어요. 다시 받아 주세요")
 
-	// Bearer와 쿠키 둘 다 인증된다. 이미 헤더가 있으면 쿠키로 넘어가지 않는다
+	// Both Bearer and cookie authenticate. If a header is present, it does not fall through to the cookie
 	me := e.get("/api/v1/users/me", access)
 	if me.Status != 200 || me.Body["email"] != "user@example.com" || me.Body["emailVerified"] != true || me.Body["name"] != "" || me.Body["id"] == "" {
 		t.Errorf("내 정보: %d %s", me.Status, me.Raw)
@@ -269,9 +269,9 @@ func TestAuthFlow(t *testing.T) {
 		t.Errorf("틀린 Authorization 헤더가 있으면 쿠키로 넘어가지 않는다: %d", badHeaderGoodCookie.Status)
 	}
 	wantErr(t, e.get("/api/v1/users/me", ""), 401, "unauthorized")
-	wantErr(t, e.get("/api/v1/users/me", refresh), 401, "unauthorized") // refresh 토큰으로는 API를 쓸 수 없다
+	wantErr(t, e.get("/api/v1/users/me", refresh), 401, "unauthorized") // the API cannot be used with a refresh token
 
-	// refresh: 쿠키로도 본문으로도 갱신된다. refresh 토큰은 그대로다
+	// refresh: works via cookie or body. The refresh token stays the same
 	byCookie := e.do("POST", "/api/v1/auth/refresh", "", nil, "", func(r *http.Request) { r.AddCookie(&http.Cookie{Name: "cs_refresh", Value: refresh}) })
 	if byCookie.Status != 200 || byCookie.Body["refreshToken"] != refresh || byCookie.Body["accessToken"] == "" {
 		t.Errorf("쿠키로 갱신: %d %s", byCookie.Status, byCookie.Raw)
@@ -283,7 +283,7 @@ func TestAuthFlow(t *testing.T) {
 	wantErr(t, e.json("POST", "/api/v1/auth/refresh", "", map[string]any{"refreshToken": access}), 401, "unauthorized")
 	wantErr(t, e.do("POST", "/api/v1/auth/refresh", "", nil, ""), 401, "unauthorized")
 
-	// 로그아웃하면 세션이 폐기돼 두 토큰 모두 쓸 수 없다
+	// after logout the session is revoked, so neither token can be used
 	out := e.do("POST", "/api/v1/auth/logout", access, nil, "")
 	if out.Status != 204 {
 		t.Fatalf("로그아웃: %d", out.Status)
@@ -301,14 +301,14 @@ func TestAuthFlow(t *testing.T) {
 func TestSameEmailKeepsSameUser(t *testing.T) {
 	e := newEnv(t)
 	first := e.get("/api/v1/users/me", e.login("same@x.com")).Body["id"]
-	// 다시 로그인해도(대소문자가 달라도) 새로 가입되지 않고 같은 사용자다
+	// logging in again (even with different letter case) does not sign up anew; it is the same user
 	second := e.get("/api/v1/users/me", e.login("SAME@x.com")).Body["id"]
 	if first == nil || first != second {
 		t.Errorf("같은 이메일은 같은 사용자여야 한다: %v vs %v", first, second)
 	}
 }
 
-// --- 사용자 · 동의 ---
+// --- Users / consent ---
 
 func TestConsent(t *testing.T) {
 	e := newEnv(t)
@@ -336,7 +336,7 @@ func TestConsent(t *testing.T) {
 	}
 }
 
-// --- 계약서 ---
+// --- Contracts ---
 
 func TestUploadValidation(t *testing.T) {
 	e := newEnv(t)
@@ -350,7 +350,7 @@ func TestUploadValidation(t *testing.T) {
 	wantErr(t, e.upload(token, "file", "big.pdf", "application/pdf", make([]byte, contract.MaxUploadBytes+1)), 413, "파일 크기는 10MB 이하여야 해요")
 	wantErr(t, e.upload(token, "file", "huge.pdf", "application/pdf", make([]byte, contract.MaxUploadBytes+(2<<20))), 413, "파일 크기는 10MB 이하여야 해요")
 
-	// 확장자나 MIME 중 하나만 PDF여도 받는다
+	// accept if either the extension or the MIME type is PDF
 	if r := e.upload(token, "file", "scan.PDF", "application/octet-stream", []byte("%PDF")); r.Status != 202 {
 		t.Errorf("확장자로 판별: %d %s", r.Status, r.Raw)
 	}
@@ -367,7 +367,7 @@ func TestContractCompletedShape(t *testing.T) {
 	e.analyzer.set(sampleAnalysis(), nil, gate)
 	id := e.uploadPDF(token)
 
-	// 분석 중: 200이고 progress만 값이 있다. 나머지 결과 필드는 null이지만 키는 있다
+	// analyzing: 200, and only progress has a value. The other result fields are null but the keys exist
 	pend := e.get("/api/v1/contracts/"+id, token)
 	if pend.Status != 200 || pend.Body["status"] != "pending" || pend.Body["error"] != nil {
 		t.Fatalf("pending 상세: %d %s", pend.Status, pend.Raw)
@@ -424,7 +424,7 @@ func TestContractCompletedShape(t *testing.T) {
 		t.Errorf("조항 값: %v", first)
 	}
 
-	// 조항 상세: lawReference는 배열이다
+	// clause detail: lawReference is an array
 	clauseID := first["id"].(string)
 	cl := e.get("/api/v1/contracts/"+id+"/clauses/"+clauseID, token)
 	if cl.Status != 200 || cl.Body["contractId"] != id || cl.Body["safeText"] != "대체1" {
@@ -506,7 +506,7 @@ func TestDeleteDuringAnalysisDiscardsResult(t *testing.T) {
 	close(gate)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	e.app.Contracts.Shutdown(ctx) // 분석 작업이 끝날 때까지 기다린다
+	e.app.Contracts.Shutdown(ctx) // wait until the analysis job finishes
 	wantErr(t, e.get("/api/v1/contracts/"+id, token), 404, "not found")
 }
 
@@ -514,7 +514,7 @@ func TestListContracts(t *testing.T) {
 	e := newEnv(t)
 	token := e.login("a@b.com")
 
-	// 완료(조항 2개) → 실패 → 진행 중 순서로 만든다
+	// create in this order: completed (2 clauses) -> failed -> in progress
 	done := e.uploadPDF(token)
 	e.waitDone(token, done)
 	e.analyzer.set(contract.Analysis{}, &contractsvc.AnalysisError{Message: "실패 사유"}, nil)
@@ -548,7 +548,7 @@ func TestListContracts(t *testing.T) {
 		t.Errorf("진행 중 항목: %v", byID[pending])
 	}
 
-	// 페이지네이션과 보정
+	// pagination and clamping
 	p1 := e.get("/api/v1/contracts?page=1&limit=2", token)
 	if len(p1.Body["items"].([]any)) != 2 || p1.Body["hasMore"] != true {
 		t.Errorf("1쪽: %s", p1.Raw)
@@ -567,7 +567,7 @@ func TestListContracts(t *testing.T) {
 		t.Errorf("limit 상한 50: %s", r.Raw)
 	}
 
-	// 홈 화면용: 실패를 제외한다
+	// for the home screen: exclude failed
 	active := e.get("/api/v1/contracts?status=active&limit=3", token)
 	ai := active.Body["items"].([]any)
 	if len(ai) != 2 || ai[0].(map[string]any)["id"] != pending || ai[1].(map[string]any)["id"] != done {
@@ -586,7 +586,7 @@ func TestStalePendingIsMarkedFailedOnRead(t *testing.T) {
 	t.Cleanup(func() { close(gate) })
 	id := e.uploadPDF(token)
 
-	// 16분 전에 만든 것처럼 만든다
+	// make it look as if it was created 16 minutes ago
 	ctx := context.Background()
 	if _, err := e.app.PoolForTest().Exec(ctx, `UPDATE contract SET created_at = now() - interval '16 minutes' WHERE id = $1`, id); err != nil {
 		t.Fatal(err)

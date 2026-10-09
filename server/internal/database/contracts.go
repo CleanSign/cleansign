@@ -13,10 +13,10 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/domain/contract"
 )
 
-// lawReferenceSep는 여러 법령을 한 컬럼에 이어 붙일 때 쓰는 구분자다. 기존 데이터 형식과 같다.
+// lawReferenceSep is the separator used to join multiple laws into one column. It matches the existing data format.
 const lawReferenceSep = ", "
 
-// ContractRepo는 계약서 포트를 구현한다.
+// ContractRepo implements the contract port.
 type ContractRepo struct {
 	pool *pgxpool.Pool
 	q    *sqlc.Queries
@@ -103,7 +103,7 @@ func (r *ContractRepo) UpdateProgress(ctx context.Context, id string, p contract
 	return r.q.UpdateContractProgress(ctx, sqlc.UpdateContractProgressParams{ID: id, Progress: b})
 }
 
-// Complete는 결과와 조항을 한 트랜잭션에 저장한다. 계약서가 이미 지워졌으면 false를 돌려준다.
+// Complete saves the result and clauses in one transaction. It returns false if the contract has already been deleted.
 func (r *ContractRepo) Complete(ctx context.Context, id string, res contract.Result, clauses []contract.Clause) (bool, error) {
 	warnings, err := json.Marshal(res.Warnings)
 	if err != nil {
@@ -113,7 +113,7 @@ func (r *ContractRepo) Complete(ctx context.Context, id string, res contract.Res
 	if err != nil {
 		return false, err
 	}
-	defer tx.Rollback(ctx) //nolint:errcheck // 커밋 뒤의 롤백은 무시된다
+	defer tx.Rollback(ctx) //nolint:errcheck // a rollback after commit is ignored
 
 	q := r.q.WithTx(tx)
 	grade := sqlc.ClauseSeverity(res.Grade)
@@ -129,7 +129,7 @@ func (r *ContractRepo) Complete(ctx context.Context, id string, res contract.Res
 		return false, err
 	}
 	if updated == 0 {
-		return false, nil // 분석하는 동안 사용자가 지웠다: 결과를 버린다
+		return false, nil // the user deleted it during analysis: discard the result
 	}
 	for _, c := range clauses {
 		if err := q.InsertClause(ctx, insertClauseParams(c)); err != nil {
@@ -156,7 +156,7 @@ func (r *ContractRepo) FailAllStale(ctx context.Context, createdBefore time.Time
 	return r.q.FailStaleContracts(ctx, sqlc.FailStaleContractsParams{CreatedAt: createdBefore, ErrorMessage: &message})
 }
 
-// --- 변환 ---
+// --- Conversion ---
 
 func toContract(r sqlc.Contract) (contract.Contract, error) {
 	c := contract.Contract{
@@ -216,7 +216,7 @@ func marshalProgress(p *contract.Progress) ([]byte, error) {
 	return json.Marshal(p)
 }
 
-// nilIfJSONNull은 비어 있거나 JSON null인 값을 nil로 돌려준다(컬럼은 NULL로 저장한다).
+// nilIfJSONNull returns nil for empty or JSON null values (the column is stored as NULL).
 func nilIfJSONNull(b json.RawMessage) json.RawMessage {
 	if len(b) == 0 || string(b) == "null" {
 		return nil

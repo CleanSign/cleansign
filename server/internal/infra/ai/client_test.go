@@ -186,7 +186,7 @@ func TestConnectionRefused(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
-	// 헤더 전, 스트림 도중 두 경우 모두 시간 초과 메시지여야 한다.
+	// Both before the headers and mid-stream must give the timeout message.
 	for name, h := range map[string]http.HandlerFunc{
 		"before headers": func(w http.ResponseWriter, r *http.Request) {
 			select {

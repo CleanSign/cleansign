@@ -2,7 +2,7 @@ import asyncio
 
 from app.llm.base import Classification
 
-# 키워드 기반 임시 분류기. 정확도를 위한 것이 아니라 모델 없이 서버/테스트를 돌리기 위한 것이다.
+# Temporary keyword-based classifier. It is not meant to be accurate; it exists to run the server/tests without a model.
 RULES: list[tuple[str, tuple[str, ...]]] = [
     ("묵시적갱신배제", ("갱신요구권", "갱신청구권", "갱신을 요구하지", "갱신하지 않")),
     ("원상복구과도부담", ("원상복구", "원상회복", "모든 수리", "수리비용", "시설물")),

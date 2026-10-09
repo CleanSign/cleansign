@@ -9,9 +9,9 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/shared/errs"
 )
 
-// authenticate는 토큰이 있고 유효하면 사용자를 요청 컨텍스트에 담는다. 거절하지는 않는다:
-// 로그인이 필요한 곳은 handler가 requireUser로 401을 돌려준다.
-// Authorization 헤더가 있으면 그것만 보고, 없을 때만 쿠키를 본다.
+// authenticate puts the user in the request context if a token is present and valid. It does not reject:
+// where login is required, the handler returns 401 via requireUser.
+// If an Authorization header is present only that is checked; the cookie is consulted only when it is absent.
 func (h *handler) authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		token, hasHeader := bearerToken(c)
@@ -27,7 +27,7 @@ func (h *handler) authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 		case err == nil:
 			c.SetRequest(c.Request().WithContext(authctx.With(ctx, userID, sessionID)))
 		case errors.Is(err, errs.ErrUnauthorized):
-			// 만료되었거나 폐기된 토큰: 비로그인으로 처리한다
+			// expired or revoked token: treat as not logged in
 		default:
 			return err
 		}
@@ -35,7 +35,7 @@ func (h *handler) authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-// requireUser는 로그인한 사용자의 ID를 돌려준다. 로그인하지 않았으면 errs.ErrUnauthorized다.
+// requireUser returns the logged-in user's ID. If not logged in, it returns errs.ErrUnauthorized.
 func requireUser(c echo.Context) (string, error) {
 	id, ok := authctx.UserID(c.Request().Context())
 	if !ok {

@@ -13,7 +13,7 @@ import (
 	gomail "github.com/wneessen/go-mail"
 )
 
-// service/auth.Mailer 와 동일한 로컬 인터페이스 (아키텍처 린터 때문에 import 하지 않는다).
+// A local interface identical to service/auth.Mailer (not imported because of the architecture linter).
 type mailer interface {
 	SendCode(ctx context.Context, to, code string, ttl time.Duration) error
 }
@@ -43,7 +43,7 @@ func TestBuildMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 제목은 RFC 2047 로 인코딩되어 저장되므로 디코딩해서 비교한다.
+	// The subject is stored encoded as RFC 2047, so decode it before comparing.
 	raw := m.GetGenHeader(gomail.HeaderSubject)
 	if len(raw) != 1 {
 		t.Fatalf("subject = %v", raw)
@@ -92,7 +92,7 @@ func TestBuildMessageEscapesHTML(t *testing.T) {
 	if strings.Contains(html, "<b>x</b>") || !strings.Contains(html, "&lt;b&gt;") {
 		t.Errorf("code not escaped: %s", html)
 	}
-	// 잘못된 수신자 주소는 에러여야 한다 (헤더 주입 방지).
+	// An invalid recipient address must be an error (prevents header injection).
 	if _, err := buildMessage(Config{User: "u@example.org"}, "<b>@x\r\nBcc: e@e.com", "1", time.Minute); err == nil {
 		t.Error("adversarial to should fail")
 	}

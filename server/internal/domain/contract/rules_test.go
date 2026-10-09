@@ -41,13 +41,13 @@ func TestValidateUpload(t *testing.T) {
 		want       error
 	}{
 		{"a.pdf", "application/pdf", 100, nil},
-		{"A.PDF", "application/octet-stream", 100, nil}, // 확장자로 판별
-		{"a.txt", "application/pdf", 100, nil},          // MIME으로 판별
+		{"A.PDF", "application/octet-stream", 100, nil}, // detected by extension
+		{"a.txt", "application/pdf", 100, nil},          // detected by MIME
 		{"a.txt", "text/plain", 100, ErrNotPDF},
 		{"a.pdf", "application/pdf", 0, ErrBadSize},
 		{"a.pdf", "application/pdf", MaxUploadBytes, nil},
 		{"a.pdf", "application/pdf", MaxUploadBytes + 1, ErrBadSize},
-		{"a.txt", "text/plain", 0, ErrNotPDF}, // PDF 검사가 먼저다
+		{"a.txt", "text/plain", 0, ErrNotPDF}, // the PDF check comes first
 	}
 	for _, c := range cases {
 		if got := ValidateUpload(c.name, c.mime, c.size); got != c.want {
@@ -81,9 +81,9 @@ func TestNormalizePage(t *testing.T) {
 		{"3", "10", 3, 10},
 		{"0", "0", 1, 20},
 		{"abc", "abc", 1, 20},
-		{"-4", "-4", 1, 1},   // 음수는 1로 올린다
-		{"2.9", "7.9", 2, 7}, // 내림
-		{"1", "51", 1, 50},   // 상한
+		{"-4", "-4", 1, 1},   // negative is raised to 1
+		{"2.9", "7.9", 2, 7}, // floor
+		{"1", "51", 1, 50},   // upper limit
 		{"1", "1000", 1, 50},
 		{" 2 ", " 5 ", 2, 5},
 		{"NaN", "Inf", 1, 20},

@@ -13,7 +13,7 @@ const (
 	refreshCookie = "cs_refresh"
 )
 
-// setAuthCookies는 web을 위해 토큰을 httpOnly 쿠키로도 내려 준다. 모바일은 응답 본문의 토큰을 쓴다.
+// setAuthCookies also sends the tokens as httpOnly cookies for web. Mobile uses the tokens in the response body.
 func (h *handler) setAuthCookies(c echo.Context, access string, accessExp time.Time, refresh string, refreshExp time.Time) {
 	c.SetCookie(h.cookie(accessCookie, access, accessExp))
 	c.SetCookie(h.cookie(refreshCookie, refresh, refreshExp))
@@ -39,7 +39,7 @@ func (h *handler) cookie(name, value string, expires time.Time) *http.Cookie {
 	}
 }
 
-// bearerToken은 Authorization: Bearer 헤더의 토큰을 돌려준다. 헤더가 없으면 ok가 false다.
+// bearerToken returns the token from the Authorization: Bearer header. ok is false if there is no header.
 func bearerToken(c echo.Context) (token string, ok bool) {
 	h := c.Request().Header.Get(echo.HeaderAuthorization)
 	if h == "" {
@@ -49,7 +49,7 @@ func bearerToken(c echo.Context) (token string, ok bool) {
 	if len(h) > len(prefix) && strings.EqualFold(h[:len(prefix)], prefix) {
 		return strings.TrimSpace(h[len(prefix):]), true
 	}
-	return "", true // 형식이 틀린 헤더도 "헤더가 있음"으로 본다(쿠키로 넘어가지 않는다)
+	return "", true // a malformed header still counts as "header present" (it does not fall through to the cookie)
 }
 
 func cookieValue(c echo.Context, name string) string {

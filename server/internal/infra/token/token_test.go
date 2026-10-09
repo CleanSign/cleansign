@@ -50,7 +50,7 @@ func TestParseRejects(t *testing.T) {
 		t.Errorf("토큰이 아닌 문자열: %v", err)
 	}
 
-	// alg=none은 거절한다
+	// reject alg=none
 	none := jwt.NewWithClaims(jwt.SigningMethodNone, claims{SessionID: "s1", Kind: svc.KindAccess, RegisteredClaims: jwt.RegisteredClaims{Issuer: issuer, Subject: "u1", ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour))}})
 	s, _ := none.SignedString(jwt.UnsafeAllowNoneSignatureType)
 	if _, err := i.Parse(s, false); !errors.Is(err, ErrInvalid) {
@@ -60,7 +60,7 @@ func TestParseRejects(t *testing.T) {
 		t.Errorf("alg=none (만료 무시 모드): %v", err)
 	}
 
-	// 발급자가 다르면 거절한다
+	// reject a different issuer
 	other := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{SessionID: "s1", Kind: svc.KindAccess, RegisteredClaims: jwt.RegisteredClaims{Issuer: "someone", Subject: "u1", ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour))}})
 	s, _ = other.SignedString([]byte(secret))
 	for _, ignore := range []bool{false, true} {
@@ -69,7 +69,7 @@ func TestParseRejects(t *testing.T) {
 		}
 	}
 
-	// 필수 값이 없으면 거절한다
+	// reject if a required value is missing
 	noSid := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{Kind: svc.KindAccess, RegisteredClaims: jwt.RegisteredClaims{Issuer: issuer, Subject: "u1", ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour))}})
 	s, _ = noSid.SignedString([]byte(secret))
 	if _, err := i.Parse(s, false); !errors.Is(err, ErrInvalid) {
@@ -83,7 +83,7 @@ func TestParseRejects(t *testing.T) {
 func TestExpiry(t *testing.T) {
 	i := New(secret)
 	past := time.Now().Add(-2 * time.Hour)
-	expired, _, err := i.Access("u1", "s1", past) // 30분짜리가 1시간 반 전에 만료
+	expired, _, err := i.Access("u1", "s1", past) // a 30-minute token that expired an hour and a half ago
 	if err != nil {
 		t.Fatal(err)
 	}

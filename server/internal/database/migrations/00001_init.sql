@@ -11,7 +11,7 @@ CREATE TABLE users (
     updated_at     timestamptz NOT NULL DEFAULT now()
 );
 
--- 로그인 세션. refresh 토큰(JWT)의 sid가 이 행의 id를 가리킨다. 행을 지우면 세션이 폐기된다.
+-- Login session. The sid of the refresh token (JWT) points to this row's id. Deleting the row revokes the session.
 CREATE TABLE sessions (
     id              text PRIMARY KEY,
     user_id         text        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
@@ -22,7 +22,7 @@ CREATE TABLE sessions (
 CREATE INDEX sessions_user_id_idx ON sessions (user_id);
 CREATE INDEX sessions_expires_at_idx ON sessions (expires_at);
 
--- 이메일 인증코드. 이메일당 한 행(다시 보내면 덮어쓴다).
+-- Email verification code. One row per email (resending overwrites it).
 CREATE TABLE email_codes (
     email      text PRIMARY KEY,
     code_hash  text        NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE contract (
     id             text PRIMARY KEY,
     user_id        text            NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     file_name      text            NOT NULL,
-    -- 오브젝트 스토리지 연결 전까지는 원본을 저장하지 않으므로 null
+    -- null, since the original is not stored until object storage is connected
     file_key       text,
     mime_type      text            NOT NULL,
     status         contract_status NOT NULL DEFAULT 'pending',
@@ -58,7 +58,7 @@ CREATE TABLE contract (
     model_version  text,
     warnings       jsonb,
     risk_flow      jsonb,
-    -- 분석 중(pending)일 때만 의미가 있다. stage: reading | ocr | splitting | classifying | scoring
+    -- Only meaningful while analysis is pending. stage: reading | ocr | splitting | classifying | scoring
     progress       jsonb,
     error_message  text,
     created_at     timestamptz     NOT NULL DEFAULT now()

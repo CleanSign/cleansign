@@ -1,6 +1,6 @@
-"""독소 조항 100개(toxic_clauses_100.csv)를 분류기에 넣어 탐지율(정상이 아니라고 본 비율)을 잰다.
-효력이 유효/유효 가능/기각/권고적인 경계 사례는 제외한다. 유형 일치는 자동 매핑(검수 전)이라 참고용.
-사용: FAST=1 python3 toxic_probe.py [모델명]"""
+"""Feed 100 toxic clauses (toxic_clauses_100.csv) to the classifier and measure the detection rate (share judged not normal).
+Borderline cases whose validity is valid / possibly valid / dismissed / advisory are excluded. Type match uses automatic mapping (before review), so it is for reference only.
+Usage: FAST=1 python3 toxic_probe.py [model name]"""
 import csv, os, sys, pathlib, collections
 os.environ.setdefault("FAST", "1")
 sys.argv = [sys.argv[0], *(sys.argv[1:2] or ["gemma4:12b"]), "v1"]

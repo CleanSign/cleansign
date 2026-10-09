@@ -1,4 +1,4 @@
-/** 원 단위 금액을 읽기 쉽게: 3,612,000 → "약 361만 원", 150,000,000 → "약 1.5억 원" */
+/** Format a KRW amount for readability: 3,612,000 → "약 361만 원", 150,000,000 → "약 1.5억 원" */
 export function formatWon(n: number): string {
   if (n <= 0) return "0원";
   if (n >= 100_000_000) {
@@ -32,8 +32,8 @@ export const CLAUSE_LABEL: Record<string, string> = {
 export const clauseLabel = (t: string | null) => (t && CLAUSE_LABEL[t]) || "위험 조항";
 
 /**
- * 조항 칩. severity는 '법적으로 얼마나 나쁜가'가 아니라 예상 손실이 보증금에 비해 얼마나 큰가(손실 규모)이다.
- * 그래서 "위험 높음/낮음"이 아니라 "손실 큼/보통/작음"으로 쓰고, 작은 쪽을 초록(안전)으로 칠하지 않는다.
+ * Clause chip. severity is not 'how legally bad it is' but how large the expected loss is relative to the deposit (loss scale).
+ * So we use "loss large/medium/small" rather than "risk high/low", and never color the small end green (safe).
  */
 export const SEVERITY_CHIP: Record<string, { label: string; tone: "danger" | "warn" | "neutral" }> = {
   high: { label: "손실 큼", tone: "danger" },

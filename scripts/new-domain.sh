@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 새 도메인의 Go 뼈대를 만든다: server/internal/domain/<name>/ 과 server/internal/service/<name>/
-# 사용: make domain NAME=article   (소문자와 숫자, 여러 단어는 consultantavailability 처럼 붙여 쓴다)
+# Create a Go skeleton for a new domain: server/internal/domain/<name>/ and server/internal/service/<name>/
+# Usage: make domain NAME=article   (lowercase letters and digits; join multiple words together, like consultantavailability)
 set -euo pipefail
 
 NAME="${1:-}"
@@ -22,20 +22,20 @@ fi
 mkdir -p "$DOMAIN_DIR" "$SERVICE_DIR"
 
 cat > "$DOMAIN_DIR/$NAME.go" <<GO
-// Package $NAME 은 $NAME 의 순수한 데이터와 규칙을 담는다.
-// 표준 라이브러리만 import한다. DB, HTTP, 외부 서비스를 알지 못한다.
+// Package $NAME holds the pure data and rules of $NAME.
+// It imports only the standard library and knows nothing about the DB, HTTP, or external services.
 package $NAME
 GO
 
 cat > "$SERVICE_DIR/ports.go" <<GO
 package $NAME
 
-// 이 서비스가 필요로 하는 바깥 세계(DB, 외부 서비스)를 인터페이스(포트)로 정의한다.
-// 구현은 internal/database 나 internal/infra 에 둔다.
+// Defines the outside world this service needs (DB, external services) as interfaces (ports).
+// Implementations live in internal/database or internal/infra.
 GO
 
 cat > "$SERVICE_DIR/service.go" <<GO
-// Package $NAME 은 $NAME 의 흐름을 조립한다: 포트를 불러 데이터를 읽고, domain 규칙을 적용하고, 저장한다.
+// Package $NAME assembles the flow of $NAME: it calls ports to read data, applies domain rules, and saves.
 package $NAME
 
 import _ "$MODULE/domain/$NAME"

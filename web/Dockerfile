@@ -12,7 +12,7 @@ RUN npm ci
 # Copy the rest of the application source code
 COPY . .
 
-# rewrites(/api/v1/* -> server)는 빌드 시점에 고정된다. server 주소는 빌드 인자로 받는다
+# rewrites (/api/v1/* -> server) are fixed at build time. The server address is taken as a build arg
 ARG SERVER_URL=http://localhost:4000
 ENV SERVER_URL=$SERVER_URL
 
@@ -28,7 +28,7 @@ WORKDIR /app
 
 # Set the environment to production
 ENV NODE_ENV=production
-# 서버 컴포넌트·미들웨어가 런타임에 server를 부를 때 쓴다 (빌드 인자와 같은 값)
+# Used when server components and middleware call the server at runtime (same value as the build arg)
 ARG SERVER_URL=http://localhost:4000
 ENV SERVER_URL=$SERVER_URL
 

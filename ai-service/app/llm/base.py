@@ -11,7 +11,7 @@ class Classification:
 
 
 class LLMError(Exception):
-    """모델 호출/파싱 실패. 파이프라인은 해당 조항을 점수에서 제외하고 warnings에 남긴다."""
+    """Model call/parse failure. The pipeline excludes the clause from scoring and records it in warnings."""
 
 
 class LLMProvider(Protocol):

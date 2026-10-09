@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// output: "standalone"에서는 rewrites가 빌드 시점에 고정된다. 운영에서는 SERVER_URL을 빌드 인자로 준다.
+// With output: "standalone", rewrites are fixed at build time. In production, pass SERVER_URL as a build arg.
 const serverUrl = process.env.SERVER_URL ?? "http://localhost:4000";
 
 const nextConfig: NextConfig = {

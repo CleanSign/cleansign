@@ -9,7 +9,7 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/domain/user"
 )
 
-// UserRepo는 service/user와 service/auth의 사용자 포트를 구현한다.
+// UserRepo implements the user port for service/user and service/auth.
 type UserRepo struct{ q *sqlc.Queries }
 
 func NewUserRepo(pool *pgxpool.Pool) *UserRepo { return &UserRepo{q: queries(pool)} }

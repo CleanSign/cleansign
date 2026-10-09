@@ -1,5 +1,5 @@
-"""조항 분류 프롬프트 실험 (Ollama). 사용: python3 classify_probe.py [모델명] [프롬프트버전]
-라벨 데이터의 조항 + 임시 정상 조항(synthetic, 데이터셋 아님)으로 유형 분류를 시험한다."""
+"""Clause classification prompt experiment (Ollama). Usage: python3 classify_probe.py [model name] [prompt version]
+Tests type classification with labeled-data clauses plus temporary normal clauses (synthetic, not a dataset)."""
 import csv, json, sys, time, urllib.request, pathlib
 
 MODEL = sys.argv[1] if len(sys.argv) > 1 else "gemma4:12b"
@@ -18,7 +18,7 @@ SCHEMA = {
     },
     "required": ["clause_type", "is_risky", "confidence", "reason"],
 }
-# 속도 실험: FAST=1이면 reason 없이 분류만 받는다 (분류 단계와 설명 단계를 분리하는 구조 검증)
+# Speed experiment: with FAST=1, get only the classification without a reason (validates separating the classification and explanation steps)
 import os
 if os.environ.get("FAST"):
     SCHEMA = {"type": "object",

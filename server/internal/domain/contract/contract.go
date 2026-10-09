@@ -1,5 +1,5 @@
-// Package contract는 계약서 분석의 순수한 데이터와 규칙을 담는다.
-// 표준 라이브러리만 import한다. DB, HTTP, AI 서버를 알지 못한다.
+// Package contract contains the pure data and rules for contract analysis.
+// It imports only the standard library. It knows nothing about the DB, HTTP, or the AI server.
 package contract
 
 import (
@@ -23,7 +23,7 @@ const (
 	SeverityLow    Severity = "low"
 )
 
-// Progress는 분석 중(pending)일 때의 처리 단계다.
+// Progress is the processing stage while analysis is pending.
 // Stage: reading | ocr | splitting | classifying | scoring
 type Progress struct {
 	Stage string `json:"stage"`
@@ -31,7 +31,7 @@ type Progress struct {
 	Total int    `json:"total"`
 }
 
-// InitialProgress는 업로드 직후의 진행 상태다.
+// InitialProgress is the progress state right after upload.
 func InitialProgress() Progress { return Progress{Stage: "reading"} }
 
 type Contract struct {
@@ -54,7 +54,7 @@ type Contract struct {
 	CreatedAt     time.Time
 }
 
-// Clause는 계약서에서 찾은 위험 조항이다.
+// Clause is a risk clause found in a contract.
 type Clause struct {
 	ID           string
 	ContractID   string
@@ -70,7 +70,7 @@ type Clause struct {
 	OrderIndex   int32
 }
 
-// Summary는 목록에 보여 줄 한 줄 요약이다.
+// Summary is a one-line summary shown in lists.
 type Summary struct {
 	ID           string
 	FileName     string
@@ -81,7 +81,7 @@ type Summary struct {
 	ClauseCount  int32
 }
 
-// Page는 히스토리 한 페이지다.
+// Page is one page of history.
 type Page struct {
 	Items   []Summary
 	Page    int

@@ -1,5 +1,5 @@
-// Package server는 HTTP handler(들어오는 쪽 어댑터)를 담는다.
-// 요청을 읽어 service를 부르고 응답 모양으로 바꾸기만 한다. 규칙은 domain과 service에 있다.
+// Package server holds the HTTP handlers (inbound adapter).
+// It only reads requests, calls services, and shapes responses. The rules live in domain and service.
 package server
 
 import (
@@ -19,14 +19,14 @@ import (
 
 const apiBase = "/api/v1"
 
-// Deps는 handler가 부르는 service와 설정이다.
+// Deps are the services and settings the handlers call.
 type Deps struct {
 	Auth         *authsvc.Service
 	Users        *usersvc.Service
 	Contracts    *contractsvc.Service
 	Log          *slog.Logger
 	CookieSecure bool
-	// Health는 /healthz에서 의존 서비스(DB)를 확인한다.
+	// Health checks the dependent service (DB) at /healthz.
 	Health func(ctx context.Context) error
 }
 
@@ -34,7 +34,7 @@ type handler struct{ Deps }
 
 var _ api.ServerInterface = (*handler)(nil)
 
-// New는 라우트와 미들웨어가 설정된 Echo를 만든다.
+// New creates an Echo with routes and middleware configured.
 func New(d Deps) *echo.Echo {
 	h := &handler{d}
 
@@ -65,13 +65,13 @@ func (h *handler) healthz(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// accessLog는 요청마다 한 줄을 남긴다. 쿼리 문자열은 개인정보가 들어갈 수 있어 남기지 않는다.
+// accessLog writes one line per request. The query string may contain personal data, so it is not logged.
 func (h *handler) accessLog(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		start := time.Now()
 		err := next(c)
 		if err != nil {
-			c.Error(err) // 상태 코드를 확정한 뒤에 기록한다
+			c.Error(err) // record after the status code is finalized
 		}
 		h.Log.Info("request",
 			"method", c.Request().Method,

@@ -1,5 +1,5 @@
-// Package mail 은 로그인 OTP 메일을 SMTP 로 보내는 outbound 어댑터다.
-// service/auth.Mailer 포트를 구현한다 (import 없이 구조적으로 만족).
+// Package mail is the outbound adapter that sends login OTP emails over SMTP.
+// It implements the service/auth.Mailer port (satisfied structurally, without importing it).
 package mail
 
 import (
@@ -15,13 +15,13 @@ import (
 
 const (
 	subject = "Clean Sign 인증코드"
-	// 컨텍스트에 deadline 이 없을 때 쓰는 클라이언트 측 타임아웃.
+	// Client-side timeout used when the context has no deadline.
 	defaultTimeout = 15 * time.Second
-	// 웹(TS) 코드와 동일하게 예시 호스트는 "미설정" 으로 취급한다.
+	// As in the web (TS) code, the example host is treated as "not configured".
 	placeholderHost = "smtp.example.com"
 )
 
-// Config 는 SMTP 접속 정보다. Gmail 은 앱 비밀번호를 Password 에 넣는다.
+// Config is the SMTP connection info. For Gmail, put the app password in Password.
 type Config struct {
 	Host     string
 	Port     int
@@ -30,14 +30,14 @@ type Config struct {
 	From     string
 }
 
-// Sender 는 SMTP 로 OTP 메일을 보낸다.
+// Sender sends OTP emails over SMTP.
 type Sender struct {
 	cfg  Config
 	log  *slog.Logger
 	send func(ctx context.Context, msg *gomail.Msg) error
 }
 
-// New 는 Sender 를 만든다. log 가 nil 이면 slog.Default 를 쓴다.
+// New creates a Sender. If log is nil, slog.Default is used.
 func New(cfg Config, log *slog.Logger) *Sender {
 	if log == nil {
 		log = slog.Default()
@@ -47,16 +47,16 @@ func New(cfg Config, log *slog.Logger) *Sender {
 	return s
 }
 
-// Configured 는 실제 SMTP 로 보낼 수 있는지 여부다.
+// Configured reports whether it can send through a real SMTP server.
 func (s *Sender) Configured() bool {
 	return s.cfg.Host != "" && s.cfg.Host != placeholderHost
 }
 
-// SendCode 는 로그인 코드를 to 로 보낸다.
-// SMTP 미설정(개발 환경)이면 보내지 않고 코드를 로그로만 남긴다.
+// SendCode sends the login code to to.
+// If SMTP is not configured (development), it does not send and only logs the code.
 func (s *Sender) SendCode(ctx context.Context, to, code string, ttl time.Duration) error {
 	if !s.Configured() {
-		// 개발자가 서버 로그에서 코드를 읽을 수 있게 한다. 운영(설정됨)에선 코드를 로그에 남기지 않는다.
+		// Lets developers read the code from the server log. In production (configured), the code is not logged.
 		s.log.Info("[dev] login code", "to", to, "code", code, "ttl", ttl)
 		return nil
 	}
@@ -70,7 +70,7 @@ func (s *Sender) SendCode(ctx context.Context, to, code string, ttl time.Duratio
 	return nil
 }
 
-// dialAndSend 는 실제 SMTP 전송이다. 에러에 비밀번호가 섞이지 않도록 그대로 감싸 반환만 한다.
+// dialAndSend is the actual SMTP delivery. It only wraps and returns errors as-is so the password does not leak into them.
 func (s *Sender) dialAndSend(ctx context.Context, msg *gomail.Msg) error {
 	opts := []gomail.Option{
 		gomail.WithPort(s.cfg.Port),
@@ -80,10 +80,10 @@ func (s *Sender) dialAndSend(ctx context.Context, msg *gomail.Msg) error {
 		gomail.WithTimeout(defaultTimeout),
 	}
 	if s.cfg.Port == 465 {
-		// 465 는 암묵적 TLS (TS 의 secure: port === 465).
+		// 465 is implicit TLS (TS's secure: port === 465).
 		opts = append(opts, gomail.WithSSL())
 	} else {
-		// 그 외는 STARTTLS 필수: 평문으로 자격증명이 나가는 것을 막는다.
+		// Otherwise STARTTLS is required: this prevents credentials from going out in plaintext.
 		opts = append(opts, gomail.WithTLSPolicy(gomail.TLSMandatory))
 	}
 	c, err := gomail.NewClient(s.cfg.Host, opts...)
@@ -103,7 +103,7 @@ type bodyData struct {
 	Minutes int
 }
 
-// html/template 이라 code 는 자동 이스케이프된다.
+// Since this is html/template, code is auto-escaped.
 var htmlTmpl = template.Must(template.New("otp").Parse(`<!DOCTYPE html>
 <html>
 <body>
@@ -124,7 +124,7 @@ const textFmt = `Clean Sign 인증코드
 이 코드는 %d분 후 만료됩니다. 본인이 요청하지 않았다면 이 메일을 무시하세요.
 `
 
-// ttlMinutes 는 TTL 을 안내용 분 단위로 바꾼다. 1분 미만이어도 "0분" 이 되지 않게 최소 1.
+// ttlMinutes converts the TTL to minutes for display. At least 1, so it never becomes "0 minutes" even if under a minute.
 func ttlMinutes(ttl time.Duration) int {
 	if m := int(ttl / time.Minute); m > 0 {
 		return m
@@ -132,7 +132,7 @@ func ttlMinutes(ttl time.Duration) int {
 	return 1
 }
 
-// buildMessage 는 네트워크 없이 메시지만 만드는 순수 함수다 (테스트 용이).
+// buildMessage is a pure function that builds the message without the network (easy to test).
 func buildMessage(cfg Config, to, code string, ttl time.Duration) (*gomail.Msg, error) {
 	from := cfg.From
 	if from == "" {

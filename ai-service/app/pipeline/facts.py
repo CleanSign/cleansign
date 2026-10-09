@@ -22,7 +22,7 @@ def _find(label: str, text: str) -> int | None:
 
 
 def extract_facts(text: str) -> Facts:
-    """숫자 표기(예: '보증금 1억 5,000만원', '월세 50만원')만 읽는다. 한글 수사('일억오천만원')는 읽지 못하고 None을 돌려준다."""
+    """Read numeric notation only (e.g. '보증금 1억 5,000만원', '월세 50만원'). Korean numerals ('일억오천만원') are not parsed and yield None."""
     deposit = _find(r"(?:임대차\s*)?보증금", text)
     rent = _find(r"(?:월\s*세|차임|월\s*차임)", text)
     lease = "wolse" if rent else ("jeonse" if deposit else "unknown")
