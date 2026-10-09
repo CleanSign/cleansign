@@ -38,6 +38,6 @@
     "eslint-config-next": "15.5.0",
     "react-email": "^4.2.8",
     "tailwindcss": "^4.1.12",
-    "typescript": "^5.9.2"
+    "typescript": "^7.0.2"
   }
 }
