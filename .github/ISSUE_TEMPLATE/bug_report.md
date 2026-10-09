@@ -2,7 +2,7 @@
 name: Bug
 about: Something is not working as expected
 title: '[Bug] '
-labels: bug
+type: Bug
 assignees: ''
 
 ---
@@ -20,7 +20,7 @@ A clear and concise description of what the bug is.
 - **Actual:**
 
 ## 4. Environment
-- Area: web / ai-service / DB / auth / CI
+- Area: ui / api / ai-service / db / infra / documentation
 - Browser / OS:
 - Model (e.g. gemma4:12b, mock):
 
