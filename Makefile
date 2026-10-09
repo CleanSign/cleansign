@@ -1,46 +1,56 @@
 # Clean Sign 로컬 개발 환경
 #
-#   make run                 DB + Ollama + AI 서버 + 앱을 한 번에 띄운다 (Ctrl+C로 한꺼번에 종료)
+#   make run                 DB + Ollama + AI 서버 + Go 서버 + web을 한 번에 띄운다 (Ctrl+C로 한꺼번에 종료)
 #   make run LLM=mock        Ollama 없이 키워드 분류기로 띄운다 (UI/연동 확인용, 빠름)
-#   make run PORT=3100       앱 포트 변경 (BETTER_AUTH_URL도 같이 맞춘다)
+#   make run PORT=3100       web 포트 변경
 #   make status              지금 무엇이 떠 있는지 본다
-#   make stop                make run으로 남은 앱/AI 서버를 포트로 찾아 끈다
+#   make stop                make run으로 남은 web/서버/AI 서버를 포트로 찾아 끈다
 #   make stop-ollama         모델을 내리고 `ollama serve`를 끈다
-#   make check               타입 체크 + 린트 + AI 서버 테스트
-#   make domain NAME=article 새 도메인 스키마 뼈대 생성 (src/db/schema/article.ts + index.ts 등록)
-#   make gen                 스키마 변경 → 마이그레이션 SQL 생성 + DB 적용 (DB만 띄움, 앱은 불필요)
+#   make check               Go(vet·테스트·린트) + web(타입·린트) + AI 서버 테스트
+#   make gen                 API 명세(server/api/openapi.yaml)와 SQL(queries/)에서 코드를 다시 생성한다
+#   make migration NAME=x    새 마이그레이션 파일(server/internal/database/migrations) 생성
+#   make domain NAME=article 새 도메인 뼈대 생성 (server/internal/domain·service/article)
+#   make db-reset            개발 DB(cleansign)를 지우고 다시 만든다 (데이터가 모두 사라진다)
 #
-# 변수: PORT(앱) AI_PORT(AI 서버) LLM(ollama|mock) MODEL(Ollama 모델) MOCK_DELAY_S(mock 지연, 진행 화면 확인용)
+# 변수: PORT(web) SERVER_PORT(Go 서버) AI_PORT(AI 서버) LLM(ollama|mock) MODEL(Ollama 모델) MOCK_DELAY_S(mock 지연, 진행 화면 확인용)
+#
+# 서버 설정은 server/.env (없으면 server/.env.example을 복사), web 설정은 web/.env 입니다.
+# 로그인 인증코드는 SMTP를 설정하지 않으면 [server] 로그에 나옵니다.
 
 SHELL := /bin/bash
 PORT ?= 3000
+SERVER_PORT ?= 4000
 AI_PORT ?= 8000
 LLM ?= ollama
 MODEL ?= gemma4:12b
 MOCK_DELAY_S ?= 0
 OLLAMA_URL ?= http://localhost:11434
 
-.PHONY: help run setup domain gen stop stop-ollama status check
+.PHONY: help run setup gen migration domain db-reset stop stop-ollama status check
 
 help:
-	@sed -n '3,14p' Makefile | sed 's/^# \{0,1\}//'
+	@sed -n '3,15p' Makefile | sed 's/^# \{0,1\}//'
 
 # 의존성이 없을 때만 설치한다
 setup:
-	@[ -d node_modules ] || { echo "▶ npm install"; npm install; }
+	@[ -d web/node_modules ] || { echo "▶ npm install"; (cd web && npm install); }
+	@command -v go >/dev/null || { echo "Go가 필요해요: https://go.dev/dl/"; exit 1; }
 	@command -v uv >/dev/null || { echo "uv가 필요해요: https://docs.astral.sh/uv/"; exit 1; }
 	@[ -d ai-service/.venv ] || { echo "▶ uv sync"; (cd ai-service && uv sync); }
-	@[ -f .env ] || echo "⚠ .env가 없어요: cp .env.example .env 후 값을 채워 주세요"
+	@[ -f server/.env ] || { cp server/.env.example server/.env; echo "▶ server/.env를 만들었어요 (필요하면 값을 고쳐 주세요)"; }
+	@[ -f web/.env ] || { cp web/.env.example web/.env; echo "▶ web/.env를 만들었어요"; }
 
 run: setup
 	@set -e; \
 	port_busy() { lsof -nP -iTCP:$$1 -sTCP:LISTEN >/dev/null 2>&1; }; \
 	prefix() { awk -v p="[$$1]" '{ print p " " $$0; fflush() }'; }; \
-	for p in $(PORT) $(AI_PORT); do \
+	for p in $(PORT) $(SERVER_PORT) $(AI_PORT); do \
 	  if port_busy $$p; then echo "포트 $$p 가 이미 사용 중이에요. 쓰던 서버를 끄거나(make stop) 포트를 바꿔 주세요 (예: make run PORT=3100)"; exit 1; fi; \
 	done; \
 	docker info >/dev/null 2>&1 || { echo "Docker가 꺼져 있어요. Docker Desktop을 켜 주세요"; exit 1; }; \
-	echo "▶ DB (postgres)"; npm run -s local:up; \
+	echo "▶ DB (postgres)"; docker compose up -d --wait db; \
+	docker compose exec -T db psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='cleansign'" | grep -q 1 \
+	  || docker compose exec -T db psql -U postgres -c "CREATE DATABASE cleansign" >/dev/null; \
 	trap 'echo; echo "■ 종료 중..."; trap - INT TERM EXIT; kill 0' INT TERM EXIT; \
 	if [ "$(LLM)" = "ollama" ]; then \
 	  if curl -sf $(OLLAMA_URL)/api/version >/dev/null; then echo "▶ Ollama: 이미 실행 중 (그대로 사용)"; \
@@ -56,36 +66,53 @@ run: setup
 	  uv run uvicorn app.main:app --port $(AI_PORT) 2>&1 | prefix ai ) & AI_PID=$$!; \
 	for i in $$(seq 1 40); do curl -sf localhost:$(AI_PORT)/healthz >/dev/null && break; sleep 1; done; \
 	curl -sf localhost:$(AI_PORT)/healthz >/dev/null || { echo "AI 서버가 시작되지 않았어요"; exit 1; }; \
-	echo "▶ 앱 :$(PORT)"; \
-	( BETTER_AUTH_URL=http://localhost:$(PORT) AI_SERVICE_URL=http://localhost:$(AI_PORT) \
-	  npm run dev -- -p $(PORT) 2>&1 | prefix next ) & NEXT_PID=$$!; \
-	echo; echo "  앱        http://localhost:$(PORT)"; echo "  AI 서버   http://localhost:$(AI_PORT)/healthz"; \
-	echo "  종료      Ctrl+C   (로그인 OTP는 [next] 로그에 나와요)"; echo; \
-	while kill -0 $$AI_PID 2>/dev/null && kill -0 $$NEXT_PID 2>/dev/null; do sleep 2; done; \
+	echo "▶ 서버 :$(SERVER_PORT)"; \
+	( cd server && set -a && . ./.env && set +a && PORT=$(SERVER_PORT) AI_SERVICE_URL=http://localhost:$(AI_PORT) \
+	  go run ./cmd/server 2>&1 | prefix server ) & SERVER_PID=$$!; \
+	for i in $$(seq 1 60); do curl -sf localhost:$(SERVER_PORT)/healthz >/dev/null && break; sleep 1; done; \
+	curl -sf localhost:$(SERVER_PORT)/healthz >/dev/null || { echo "서버가 시작되지 않았어요"; exit 1; }; \
+	echo "▶ web :$(PORT)"; \
+	( cd web && SERVER_URL=http://localhost:$(SERVER_PORT) npm run dev -- -p $(PORT) ) 2>&1 | prefix web & WEB_PID=$$!; \
+	echo; echo "  web       http://localhost:$(PORT)"; echo "  서버      http://localhost:$(SERVER_PORT)/healthz"; echo "  AI 서버   http://localhost:$(AI_PORT)/healthz"; \
+	echo "  종료      Ctrl+C   (로그인 인증코드는 [server] 로그에 나와요)"; echo; \
+	while kill -0 $$AI_PID 2>/dev/null && kill -0 $$SERVER_PID 2>/dev/null && kill -0 $$WEB_PID 2>/dev/null; do sleep 2; done; \
 	echo "프로세스가 종료돼서 전체를 끕니다"; exit 1
 
 status:
 	@printf "DB        "; docker ps --filter name=cleansign-db --format '{{.Status}}' | grep . || echo "꺼짐"
 	@printf "Ollama    "; curl -sf $(OLLAMA_URL)/api/version >/dev/null && echo "실행 중 (모델: $$(curl -s $(OLLAMA_URL)/api/ps | python3 -c 'import sys,json;print(", ".join(m["name"] for m in json.load(sys.stdin)["models"]) or "로드 안 됨")'))" || echo "꺼짐"
 	@printf "AI 서버   "; curl -sf localhost:$(AI_PORT)/healthz 2>/dev/null || echo "꺼짐 (:$(AI_PORT))"
-	@printf "\n앱        "; lsof -nP -iTCP:$(PORT) -sTCP:LISTEN >/dev/null 2>&1 && echo "실행 중 (:$(PORT))" || echo "꺼짐 (:$(PORT))"
+	@printf "\n서버      "; curl -sf localhost:$(SERVER_PORT)/healthz 2>/dev/null || echo "꺼짐 (:$(SERVER_PORT))"
+	@printf "\nweb       "; lsof -nP -iTCP:$(PORT) -sTCP:LISTEN >/dev/null 2>&1 && echo "실행 중 (:$(PORT))" || echo "꺼짐 (:$(PORT))"
 
-# 새 도메인 스키마 파일 뼈대를 만들고 index.ts 에 등록한다 (컬럼은 직접 채운다)
+# API 명세와 SQL에서 코드를 다시 만든다. 생성 결과는 커밋한다 (CI가 최신인지 검사한다)
+gen:
+	@command -v sqlc >/dev/null || { echo "sqlc가 필요해요: brew install sqlc"; exit 1; }
+	cd server && go generate ./api/ && sqlc generate
+	@[ -d web/node_modules ] || (cd web && npm install)
+	cd web && npm run -s gen:api
+
+# 새 마이그레이션 파일을 만든다 (적용은 서버가 시작할 때 자동으로 한다). 이미 적용된 파일은 고치지 말고 새로 만든다
+migration:
+	@[ -n "$(NAME)" ] || { echo "사용법: make migration NAME=add_article_table"; exit 1; }
+	@command -v goose >/dev/null || { echo "goose가 필요해요: brew install goose"; exit 1; }
+	goose -dir server/internal/database/migrations create "$(NAME)" sql
+
+# 새 도메인의 domain/service 뼈대를 만들고 다음에 할 일을 알려 준다
 domain:
 	@./scripts/new-domain.sh "$(NAME)"
 
-# src/db/schema 를 바꾼 뒤 한 번에: SQL 생성(migrations/) → DB 기동 → DB 적용
-# 생성된 SQL은 적용 전에 눈으로 확인하세요 (이미 적용된 마이그레이션 파일은 고치지 말 것)
-gen: setup
-	@echo "▶ 마이그레이션 SQL 생성"; npm run -s create:migration
+# 개발 DB를 지우고 다시 만든다. 서버를 다시 띄우면 마이그레이션이 처음부터 적용된다
+db-reset:
 	@docker info >/dev/null 2>&1 || { echo "Docker가 꺼져 있어요. Docker Desktop을 켜 주세요"; exit 1; }
-	@echo "▶ DB (postgres)"; npm run -s local:up
-	@echo "▶ DB에 적용"; node --env-file=.env node_modules/.bin/drizzle-kit migrate
-	@echo "✅ 완료"
+	@docker compose up -d --wait db
+	@read -p "개발 DB(cleansign)의 모든 데이터가 사라져요. 계속할까요? [y/N] " a && [ "$$a" = "y" ]
+	docker compose exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS cleansign WITH (FORCE)"
+	docker compose exec -T db psql -U postgres -c "CREATE DATABASE cleansign"
 
-# 앱/AI 서버가 쓰는 포트의 리스너만 끈다 (무엇을 끄는지 먼저 보여 준다). DB와 Ollama는 건드리지 않는다.
+# web/서버/AI 서버가 쓰는 포트의 리스너만 끈다 (무엇을 끄는지 먼저 보여 준다). DB와 Ollama는 건드리지 않는다.
 stop:
-	@for p in $(PORT) $(AI_PORT); do \
+	@for p in $(PORT) $(SERVER_PORT) $(AI_PORT); do \
 	  for pid in $$(lsof -nP -iTCP:$$p -sTCP:LISTEN -t 2>/dev/null); do \
 	    echo "포트 $$p 종료: pid $$pid ($$(ps -o command= -p $$pid | cut -c1-60))"; kill $$pid; \
 	  done; \
@@ -96,6 +123,9 @@ stop-ollama:
 	@pkill -f "ollama serve" && echo "ollama serve 종료" || echo "실행 중인 ollama serve 없음"
 
 check:
-	npx tsc --noEmit
-	npx eslint src
+	cd server && go vet ./...
+	cd server && go test ./...
+	@if command -v golangci-lint >/dev/null; then cd server && golangci-lint run ./...; else echo "(golangci-lint가 없어 린트는 건너뜀: brew install golangci-lint)"; fi
+	cd web && npx tsc --noEmit
+	cd web && npx eslint src
 	cd ai-service && uv run pytest -q

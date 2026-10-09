@@ -20,11 +20,11 @@ uv run pytest -q
 |---|---|---|
 | GET | `/healthz` | 상태, 현재 모델 계층 |
 | POST | `/v1/analyze` | `multipart/form-data` `file`(PDF, 텍스트 층 필요). 분석 결과 반환 |
-| POST | `/v1/analyze/stream` | `/v1/analyze`와 같지만 진행 단계(`reading → splitting → classifying N/M → scoring`)를 줄 단위 JSON(NDJSON)으로 흘리고 `result` 이벤트로 끝난다. 앱은 이 경로를 쓴다 |
+| POST | `/v1/analyze/stream` | `/v1/analyze`와 같지만 진행 단계(`reading → splitting → classifying N/M → scoring`)를 줄 단위 JSON(NDJSON)으로 흘리고 `result` 이벤트로 끝난다. server는 이 경로를 쓴다 |
 | POST | `/v1/analyze/text` | `{"text": "..."}` 로 같은 분석 (개발·실험용) |
 
-`INTERNAL_TOKEN`을 설정하면 `X-Internal-Token` 헤더가 필요합니다. 앱 서버에서만 호출하고 브라우저에 노출하지 마세요.
-응답 모양은 `app/schemas.py`(camelCase)가 기준입니다. 앱의 `contract` / `contract_danger_clause` 스키마와 대응합니다.
+`INTERNAL_TOKEN`을 설정하면 `X-Internal-Token` 헤더가 필요합니다. server(Go)에서만 호출하고 브라우저에 노출하지 마세요.
+응답 모양은 `app/schemas.py`(camelCase)가 기준입니다. server의 `contract` / `contract_danger_clause` 스키마와 대응합니다.
 
 ## 구조
 

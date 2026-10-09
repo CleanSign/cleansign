@@ -2,7 +2,22 @@ version: 2
 
 updates:
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/web"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "gomod"
+    directory: "/server"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "uv"
+    directory: "/ai-service"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "docker"
+    directories:
+      - "/web"
+      - "/server"
+      - "/ai-service"
     schedule:
       interval: "daily"
   - package-ecosystem: "github-actions"

@@ -1,26 +1,71 @@
+# 로컬/배포 확인용 전체 스택. 개발할 때는 `make run` (DB만 컨테이너, 나머지는 로컬 프로세스).
+#   docker compose up --build              # db + server + ai-service + web
+#   docker compose up -d --wait db         # DB만
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: postgres://postgres:mysecretpassword@db:5432/foodie
-    depends_on:
-      - db
   db:
     image: postgres:17
     restart: always
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_DB: foodie
+      POSTGRES_DB: cleansign
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mysecretpassword
+    volumes:
+      - db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready"]
       start_period: 5s
       interval: 5s
       timeout: 3s
       retries: 3
+
+  server:
+    build:
+      context: ./server
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgres://postgres:mysecretpassword@db:5432/cleansign?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-please}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_TOKEN: ${INTERNAL_TOKEN:-}
+      AI_SERVICE_TIMEOUT_MS: ${AI_SERVICE_TIMEOUT_MS:-600000}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  ai-service:
+    build:
+      context: ./ai-service
+    ports:
+      - "8000:8000"
+    environment:
+      # 컨테이너에서는 기본을 mock으로 둔다. 호스트의 Ollama를 쓰려면 LLM_PROVIDER=ollama
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:12b}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-}
+
+  web:
+    build:
+      context: ./web
+      args:
+        # rewrites는 빌드 시점에 고정된다
+        SERVER_URL: http://server:4000
+    ports:
+      - "3000:3000"
+    environment:
+      SERVER_URL: http://server:4000
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    depends_on:
+      - server
+
+volumes:
+  db-data:
