@@ -7,11 +7,15 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linting:
     name: Linting
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -22,9 +26,50 @@ jobs:
         run: npm ci
       - name: Run lint
         run: npm run lint
+
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tsc
+        run: npx tsc --noEmit
+
+  migrations:
+    name: Migration drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate migration (DB 연결 불필요)
+        run: npx drizzle-kit generate
+        env:
+          DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+      - name: Fail if schema changed without a migration
+        run: |
+          if [ -n "$(git status --porcelain migrations)" ]; then
+            echo "::error::스키마 변경이 있는데 마이그레이션이 커밋되지 않았어요. 'make gen' 실행 후 migrations/ 를 커밋하세요."
+            git status --porcelain migrations
+            exit 1
+          fi
+
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -35,3 +80,20 @@ jobs:
         run: npm ci
       - name: Run build
         run: npm run build
+
+  ai-service:
+    name: AI service tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ai-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync
+      - name: Run pytest
+        run: uv run pytest -q
