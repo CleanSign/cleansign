@@ -1,4 +1,4 @@
-"""앱(Next.js)과 주고받는 JSON 계약. docs/06-ai-analysis-plan.md 6-2와 같은 모양(camelCase)."""
+"""server(Go)와 주고받는 JSON 계약. docs/06-ai-analysis-plan.md 6-2와 같은 모양(camelCase)."""
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field

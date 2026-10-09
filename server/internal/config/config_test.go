@@ -1,0 +1,46 @@
+package config
+
+import (
+	"strings"
+	"testing"
+	"time"
+)
+
+func env(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
+
+func TestLoadDefaults(t *testing.T) {
+	cfg, err := load(env(map[string]string{"DATABASE_URL": "postgres://x", "JWT_SECRET": "0123456789abcdef"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Port != "4000" || cfg.AI.URL != "http://localhost:8000" || cfg.AI.Timeout != 600*time.Second || cfg.SMTP.Port != 587 || cfg.CookieSecure {
+		t.Errorf("기본값: %+v", cfg)
+	}
+}
+
+func TestLoadOverrides(t *testing.T) {
+	cfg, err := load(env(map[string]string{
+		"DATABASE_URL": "postgres://x", "JWT_SECRET": "0123456789abcdef", "PORT": "5000", "COOKIE_SECURE": "TRUE",
+		"AI_SERVICE_URL": "http://ai:8000/", "AI_SERVICE_TOKEN": "tok", "AI_SERVICE_TIMEOUT_MS": "1500",
+		"SMTP_HOST": "smtp.gmail.com", "SMTP_PORT": "465", "SMTP_USER": "u", "SMTP_PASSWORD": "p", "SMTP_FROM": "f@x.com",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Port != "5000" || !cfg.CookieSecure || cfg.AI.URL != "http://ai:8000" || cfg.AI.Token != "tok" ||
+		cfg.AI.Timeout != 1500*time.Millisecond || cfg.SMTP.Host != "smtp.gmail.com" || cfg.SMTP.Port != 465 {
+		t.Errorf("설정: %+v", cfg)
+	}
+}
+
+func TestLoadReportsAllProblems(t *testing.T) {
+	_, err := load(env(map[string]string{"JWT_SECRET": "short", "SMTP_PORT": "abc", "AI_SERVICE_TIMEOUT_MS": "-1"}))
+	if err == nil {
+		t.Fatal("오류여야 한다")
+	}
+	for _, want := range []string{"DATABASE_URL", "JWT_SECRET", "SMTP_PORT", "AI_SERVICE_TIMEOUT_MS"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("%s 문제가 메시지에 있어야 한다: %v", want, err)
+		}
+	}
+}

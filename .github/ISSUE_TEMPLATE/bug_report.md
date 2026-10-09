@@ -20,7 +20,7 @@ A clear and concise description of what the bug is.
 - **Actual:**
 
 ## 4. Environment
-- Area: ui / api / ai-service / db / infra / documentation
+- Area: web / server / ai-service / infra / documentation
 - Browser / OS:
 - Model (e.g. gemma4:12b, mock):
 

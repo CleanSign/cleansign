@@ -1,0 +1,93 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - depguard
+  settings:
+    depguard:
+      # 어니언 경계: domain ← service ← (server, database, infra). 바깥 계층끼리는 서로 모른다.
+      # list-mode strict: allow에 없는 import는 모두 금지다.
+      rules:
+        domain:
+          list-mode: strict
+          files: ["**/internal/domain/**"]
+          allow:
+            - $gostd
+          deny:
+            - pkg: github.com/CleanSign/cleansign/server/internal
+              desc: domain은 표준 라이브러리만 import할 수 있어요
+        service:
+          list-mode: strict
+          files: ["**/internal/service/**"]
+          allow:
+            - $gostd
+            - github.com/CleanSign/cleansign/server/internal/domain
+            - github.com/CleanSign/cleansign/server/internal/shared
+          deny:
+            - pkg: github.com/CleanSign/cleansign/server/internal/server
+              desc: service는 handler를 알 수 없어요
+            - pkg: github.com/CleanSign/cleansign/server/internal/database
+              desc: service는 DB를 직접 쓰지 않고 포트(인터페이스)로 써요
+            - pkg: github.com/CleanSign/cleansign/server/internal/infra
+              desc: service는 외부 연동을 직접 쓰지 않고 포트(인터페이스)로 써요
+        server:
+          list-mode: strict
+          files: ["**/internal/server/**"]
+          allow:
+            - $gostd
+            - github.com/labstack/echo
+            - github.com/CleanSign/cleansign/server/api
+            - github.com/CleanSign/cleansign/server/internal/domain
+            - github.com/CleanSign/cleansign/server/internal/service
+            - github.com/CleanSign/cleansign/server/internal/shared
+        database:
+          list-mode: strict
+          files: ["**/internal/database/**"]
+          allow:
+            - $gostd
+            - github.com/jackc/pgx
+            - github.com/pressly/goose
+            - github.com/CleanSign/cleansign/server/internal/database
+            - github.com/CleanSign/cleansign/server/internal/domain
+            - github.com/CleanSign/cleansign/server/internal/shared
+            - github.com/CleanSign/cleansign/server/internal/testutil
+        infra-ai:
+          list-mode: strict
+          files: ["**/internal/infra/ai/**"]
+          allow:
+            - $gostd
+            - github.com/CleanSign/cleansign/server/internal/domain
+            - github.com/CleanSign/cleansign/server/internal/service
+        infra-mail:
+          list-mode: strict
+          files: ["**/internal/infra/mail/**"]
+          allow:
+            - $gostd
+            - github.com/wneessen/go-mail
+        infra-token:
+          list-mode: strict
+          files: ["**/internal/infra/token/**"]
+          allow:
+            - $gostd
+            - github.com/golang-jwt/jwt
+            - github.com/CleanSign/cleansign/server/internal/domain
+            - github.com/CleanSign/cleansign/server/internal/service
+        shared:
+          list-mode: strict
+          files: ["**/internal/shared/**"]
+          allow:
+            - $gostd
+            - github.com/google/uuid
+
+  exclusions:
+    rules:
+      # 테스트에서는 정리 호출의 반환값을 일일이 검사하지 않는다
+      - path: _test\.go
+        linters: [errcheck]
+    paths:
+      - internal/database/sqlc
+      - api/api.gen.go

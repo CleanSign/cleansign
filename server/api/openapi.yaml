@@ -1,0 +1,536 @@
+openapi: 3.0.3
+info:
+  title: Clean Sign API
+  version: 0.1.0
+  description: |
+    Clean Sign 서버 API. web(Next.js)과 이후의 모바일 앱이 함께 쓴다.
+    인증은 `Authorization: Bearer <access token>` 또는 httpOnly 쿠키(`cs_access`)로 한다.
+    오류 응답은 항상 `{ "error": "<메시지>" }` 모양이다.
+servers:
+  - url: /api/v1
+
+tags:
+  - name: auth
+  - name: users
+  - name: contracts
+
+paths:
+  /auth/email/code:
+    post:
+      tags: [auth]
+      operationId: sendEmailCode
+      summary: 이메일로 6자리 인증코드를 보낸다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendEmailCodeRequest"
+      responses:
+        "200":
+          description: 코드를 보냈다
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendEmailCodeResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
+
+  /auth/email/confirm:
+    post:
+      tags: [auth]
+      operationId: confirmEmailCode
+      summary: 인증코드를 확인하고 로그인한다 (처음이면 가입)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmEmailCodeRequest"
+      responses:
+        "200":
+          description: 로그인됐다. 토큰은 본문과 httpOnly 쿠키 양쪽으로 내려간다
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tokens"
+        "400":
+          $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshTokens
+      summary: refresh 토큰으로 토큰을 다시 받는다
+      description: refresh 토큰은 본문의 `refreshToken` 또는 쿠키(`cs_refresh`)로 보낸다. refresh 토큰 자체는 바뀌지 않는다.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: 새 토큰
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tokens"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: 현재 세션을 폐기하고 쿠키를 지운다
+      responses:
+        "204":
+          description: 로그아웃됐다
+
+  /users/me:
+    get:
+      tags: [users]
+      operationId: getMe
+      summary: 내 정보
+      responses:
+        "200":
+          description: 내 정보
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /users/me/consents:
+    post:
+      tags: [users]
+      operationId: createConsent
+      summary: 약관 동의를 저장한다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsentRequest"
+      responses:
+        "201":
+          description: 저장됐다
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Consent"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /contracts:
+    post:
+      tags: [contracts]
+      operationId: createContract
+      summary: 계약서(PDF)를 올려 분석을 시작한다
+      description: 분석은 응답 이후 백그라운드로 이어진다. 상태는 `GET /contracts/{id}`로 확인한다.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "202":
+          description: 분석을 시작했다
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateContractResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "413":
+          $ref: "#/components/responses/Error"
+        "415":
+          $ref: "#/components/responses/Error"
+    get:
+      tags: [contracts]
+      operationId: listContracts
+      summary: 분석 히스토리 (최신순, 실패한 분석 포함)
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 1부터. 숫자가 아니면 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 1~50, 기본 20
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active]
+          description: "`active`면 완료·진행 중만(실패 제외). 홈 화면의 최근 목록용"
+      responses:
+        "200":
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractPage"
+        "401":
+          $ref: "#/components/responses/Error"
+
+  /contracts/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [contracts]
+      operationId: getContract
+      summary: 분석 상태와 결과. pending/failed도 200으로 돌려준다
+      responses:
+        "200":
+          description: 계약서 분석
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contract"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [contracts]
+      operationId: deleteContract
+      summary: 계약서와 분석 결과를 지운다
+      responses:
+        "204":
+          description: 지웠다
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /contracts/{id}/clauses/{clauseId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: clauseId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [contracts]
+      operationId: getClause
+      summary: 조항 상세 (분석이 완료된 계약서만)
+      responses:
+        "200":
+          description: 조항 상세
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClauseDetail"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+components:
+  responses:
+    Error:
+      description: 오류
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SendEmailCodeRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+    SendEmailCodeResponse:
+      type: object
+      required: [retryAfterSeconds]
+      properties:
+        retryAfterSeconds:
+          type: integer
+          description: 이 시간(초) 뒤에 다시 보낼 수 있다
+    ConfirmEmailCodeRequest:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+        code:
+          type: string
+        rememberDevice:
+          type: boolean
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+    Tokens:
+      type: object
+      required: [accessToken, refreshToken, accessExpiresAt, refreshExpiresAt]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        accessExpiresAt:
+          type: string
+          format: date-time
+        refreshExpiresAt:
+          type: string
+          format: date-time
+
+    Me:
+      type: object
+      required: [id, name, email, emailVerified]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        emailVerified:
+          type: boolean
+
+    ConsentRequest:
+      type: object
+      required: [terms, privacy]
+      properties:
+        terms:
+          type: boolean
+        privacy:
+          type: boolean
+        marketing:
+          type: boolean
+    Consent:
+      type: object
+      required: [id, userId, terms, privacy, marketing, createdAt]
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        terms:
+          type: boolean
+        privacy:
+          type: boolean
+        marketing:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    ContractStatus:
+      type: string
+      enum: [pending, completed, failed]
+    Severity:
+      type: string
+      enum: [high, medium, low]
+
+    CreateContractResponse:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+        status:
+          $ref: "#/components/schemas/ContractStatus"
+
+    ContractListItem:
+      type: object
+      required: [id, status, fileName, createdAt, lossAmount, riskCount, error]
+      properties:
+        id:
+          type: string
+        status:
+          $ref: "#/components/schemas/ContractStatus"
+        fileName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lossAmount:
+          type: integer
+        riskCount:
+          type: integer
+          nullable: true
+          description: 완료된 분석에서만 값이 있다
+        error:
+          type: string
+          nullable: true
+          description: 실패한 분석에서만 값이 있다
+    ContractPage:
+      type: object
+      required: [items, page, total, hasMore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContractListItem"
+        page:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+
+    Progress:
+      type: object
+      required: [stage, done, total]
+      properties:
+        stage:
+          type: string
+          description: reading | ocr | splitting | classifying | scoring
+        done:
+          type: integer
+        total:
+          type: integer
+
+    RiskItem:
+      type: object
+      required: [id, original, clauseType, confidence, severity, lossAmount, reason, lawReference, safeText]
+      properties:
+        id:
+          type: string
+        original:
+          type: string
+        clauseType:
+          type: string
+          nullable: true
+        confidence:
+          type: number
+          nullable: true
+        severity:
+          $ref: "#/components/schemas/Severity"
+        lossAmount:
+          type: integer
+        reason:
+          type: string
+        lawReference:
+          type: string
+          nullable: true
+          description: 쉼표(", ")로 이은 문자열 그대로. 조항 상세 API와 달리 배열이 아니다
+        safeText:
+          type: string
+
+    Contract:
+      type: object
+      required: [id, status, progress, error, fileName, createdAt, riskScore, grade, lossAmount, lossRange, depositAmount, flow, warnings, riskItems]
+      properties:
+        id:
+          type: string
+        status:
+          $ref: "#/components/schemas/ContractStatus"
+        progress:
+          allOf:
+            - $ref: "#/components/schemas/Progress"
+          nullable: true
+          description: pending일 때만 값이 있다
+        error:
+          type: string
+          nullable: true
+          description: failed일 때만 값이 있다
+        fileName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        riskScore:
+          type: integer
+          nullable: true
+        grade:
+          allOf:
+            - $ref: "#/components/schemas/Severity"
+          nullable: true
+        lossAmount:
+          type: integer
+        lossRange:
+          type: array
+          nullable: true
+          minItems: 2
+          maxItems: 2
+          items:
+            type: integer
+        depositAmount:
+          type: integer
+          nullable: true
+        flow:
+          nullable: true
+          x-go-type: json.RawMessage
+          description: 위험 흐름도 (아직 생성하지 않아 대부분 null)
+        warnings:
+          type: array
+          items:
+            type: string
+        riskItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/RiskItem"
+
+    ClauseDetail:
+      type: object
+      required: [id, contractId, clauseType, original, lossAmount, severity, confidence, reason, lawReference, safeText]
+      properties:
+        id:
+          type: string
+        contractId:
+          type: string
+        clauseType:
+          type: string
+          nullable: true
+        original:
+          type: string
+        lossAmount:
+          type: integer
+        severity:
+          $ref: "#/components/schemas/Severity"
+        confidence:
+          type: number
+          nullable: true
+        reason:
+          type: string
+        lawReference:
+          type: array
+          items:
+            type: string
+        safeText:
+          type: string
