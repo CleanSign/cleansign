@@ -185,6 +185,8 @@ paths:
           schema:
             type: string
             enum: [active]
+            x-oapi-codegen-extra-tags:
+              validate: "omitempty,oneof=active"
           description: "`active`면 완료·진행 중만(실패 제외). 홈 화면의 최근 목록용"
       responses:
         "200":
@@ -281,6 +283,9 @@ components:
       properties:
         email:
           type: string
+          description: 앞뒤 공백과 대소문자는 서버가 정리한다. 형식 검사는 domain이 한다
+          x-oapi-codegen-extra-tags:
+            validate: "required,max=254"
     SendEmailCodeResponse:
       type: object
       required: [retryAfterSeconds]
@@ -294,8 +299,13 @@ components:
       properties:
         email:
           type: string
+          x-oapi-codegen-extra-tags:
+            validate: "required,max=254"
         code:
           type: string
+          description: 메일로 받은 6자리 숫자
+          x-oapi-codegen-extra-tags:
+            validate: "required,len=6,numeric"
         rememberDevice:
           type: boolean
     RefreshRequest:
@@ -303,6 +313,9 @@ components:
       properties:
         refreshToken:
           type: string
+          description: 없으면 쿠키(`cs_refresh`)를 쓴다
+          x-oapi-codegen-extra-tags:
+            validate: "omitempty,max=4096"
     Tokens:
       type: object
       required: [accessToken, refreshToken, accessExpiresAt, refreshExpiresAt]
@@ -337,10 +350,17 @@ components:
       properties:
         terms:
           type: boolean
+          description: 이용약관 동의. 반드시 true여야 한다
+          x-oapi-codegen-extra-tags:
+            validate: "required"
         privacy:
           type: boolean
+          description: 개인정보처리방침 동의. 반드시 true여야 한다
+          x-oapi-codegen-extra-tags:
+            validate: "required"
         marketing:
           type: boolean
+          description: 마케팅 수신 동의(선택). boolean이 아니면 false로 본다
     Consent:
       type: object
       required: [id, userId, terms, privacy, marketing, createdAt]

@@ -178,6 +178,7 @@ export interface components {
             error: string;
         };
         SendEmailCodeRequest: {
+            /** @description 앞뒤 공백과 대소문자는 서버가 정리한다. 형식 검사는 domain이 한다 */
             email: string;
         };
         SendEmailCodeResponse: {
@@ -186,10 +187,12 @@ export interface components {
         };
         ConfirmEmailCodeRequest: {
             email: string;
+            /** @description 메일로 받은 6자리 숫자 */
             code: string;
             rememberDevice?: boolean;
         };
         RefreshRequest: {
+            /** @description 없으면 쿠키(`cs_refresh`)를 쓴다 */
             refreshToken?: string;
         };
         Tokens: {
@@ -207,8 +210,11 @@ export interface components {
             emailVerified: boolean;
         };
         ConsentRequest: {
+            /** @description 이용약관 동의. 반드시 true여야 한다 */
             terms: boolean;
+            /** @description 개인정보처리방침 동의. 반드시 true여야 한다 */
             privacy: boolean;
+            /** @description 마케팅 수신 동의(선택). boolean이 아니면 false로 본다 */
             marketing?: boolean;
         };
         Consent: {

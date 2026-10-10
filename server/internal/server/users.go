@@ -42,6 +42,11 @@ func (h *handler) CreateConsent(c echo.Context) error {
 	}
 	marketing, _ := body["marketing"].(bool) // false if not a boolean
 
+	// terms/privacy being false (required consent missing) is rejected by the validate rules in the spec
+	if err := validateBody(api.ConsentRequest{Terms: terms, Privacy: privacy, Marketing: &marketing}); err != nil {
+		return err
+	}
+
 	consent, err := h.Users.RecordConsent(c.Request().Context(), userID, terms, privacy, marketing)
 	if err != nil {
 		return err

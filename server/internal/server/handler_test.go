@@ -18,6 +18,7 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/domain/auth"
 	"github.com/CleanSign/cleansign/server/internal/domain/contract"
 	"github.com/CleanSign/cleansign/server/internal/domain/user"
+	authsvc "github.com/CleanSign/cleansign/server/internal/service/auth"
 	"github.com/CleanSign/cleansign/server/internal/shared/errs"
 )
 
@@ -214,13 +215,28 @@ func TestConsentValidationDoesNotReachService(t *testing.T) {
 	}
 }
 
-func TestConsentRequiredFromService(t *testing.T) {
+func TestConsentRequiredIsRejectedByValidationBeforeService(t *testing.T) {
+	m := newMocks(t) // no RecordConsent expectation: false is rejected by the spec's validate rule
+	m.loggedIn()
+	for name, body := range map[string]string{
+		"privacy refused": `{"terms":true,"privacy":false}`,
+		"terms refused":   `{"terms":false,"privacy":true}`,
+		"both refused":    `{"terms":false,"privacy":false}`,
+	} {
+		r := m.do("POST", "/api/v1/users/me/consents", strings.NewReader(body), bearer, jsonBody)
+		if r.Status != 400 || r.Body["error"] != "이용약관과 개인정보처리방침 동의는 필수입니다" {
+			t.Errorf("%s: %d %v", name, r.Status, r.Body)
+		}
+	}
+}
+
+func TestConsentAccepted(t *testing.T) {
 	m := newMocks(t)
 	m.loggedIn()
-	m.users.EXPECT().RecordConsent(gomock.Any(), "u1", true, false, false).Return(user.Consent{}, user.ErrConsentRequired)
-	r := m.do("POST", "/api/v1/users/me/consents", strings.NewReader(`{"terms":true,"privacy":false}`), bearer, jsonBody)
-	if r.Status != 400 || r.Body["error"] != "이용약관과 개인정보처리방침 동의는 필수입니다" {
-		t.Errorf("필수 동의: %d %v", r.Status, r.Body)
+	m.users.EXPECT().RecordConsent(gomock.Any(), "u1", true, true, true).Return(user.Consent{ID: "k1", UserID: "u1", Terms: true, Privacy: true, Marketing: true}, nil)
+	r := m.do("POST", "/api/v1/users/me/consents", strings.NewReader(`{"terms":true,"privacy":true,"marketing":true}`), bearer, jsonBody)
+	if r.Status != 201 || r.Body["marketing"] != true {
+		t.Errorf("201: %d %v", r.Status, r.Body)
 	}
 }
 
@@ -230,5 +246,66 @@ func TestLogoutClearsCookiesEvenForAnonymous(t *testing.T) {
 	r := m.do("POST", "/api/v1/auth/logout", nil)
 	if r.Status != 204 || len(r.Header.Values("Set-Cookie")) != 2 {
 		t.Errorf("204와 쿠키 삭제 2개: %d %v", r.Status, r.Header.Values("Set-Cookie"))
+	}
+}
+
+// --- 요청 검증 (openapi.yaml의 extra-tags) ---
+
+func TestSendCodeRejectedByValidationBeforeService(t *testing.T) {
+	m := newMocks(t) // service에 기대가 없다: 검증에서 걸리면 service는 불리지 않는다
+	for name, body := range map[string]string{"빈 객체": `{}`, "빈 이메일": `{"email":""}`} {
+		r := m.do("POST", "/api/v1/auth/email/code", strings.NewReader(body), jsonBody)
+		if r.Status != 400 || r.Body["error"] != "이메일 형식이 올바르지 않아요" {
+			t.Errorf("%s: %d %v", name, r.Status, r.Body)
+		}
+	}
+}
+
+func TestConfirmRejectedByValidationBeforeService(t *testing.T) {
+	m := newMocks(t)
+	for name, body := range map[string]string{
+		"코드 길이": `{"email":"a@b.com","code":"12ab"}`,
+		"코드 없음": `{"email":"a@b.com"}`,
+		"숫자 아님": `{"email":"a@b.com","code":"abcdef"}`,
+	} {
+		r := m.do("POST", "/api/v1/auth/email/confirm", strings.NewReader(body), jsonBody)
+		if r.Status != 400 || r.Body["error"] != "인증코드가 올바르지 않아요" {
+			t.Errorf("%s: %d %v", name, r.Status, r.Body)
+		}
+	}
+}
+
+func TestConfirmTrimsCodeBeforeValidatingAndCallingService(t *testing.T) {
+	m := newMocks(t)
+	m.auth.EXPECT().Confirm(gomock.Any(), "a@b.com", "123456", false).Return(authsvcResult(), nil)
+	r := m.do("POST", "/api/v1/auth/email/confirm", strings.NewReader(`{"email":"a@b.com","code":" 123456 "}`), jsonBody)
+	if r.Status != 200 {
+		t.Errorf("앞뒤 공백이 있는 코드도 통과해야 한다: %d %v", r.Status, r.Body)
+	}
+}
+
+func authsvcResult() authsvc.ConfirmResult {
+	now := time.Now()
+	return authsvc.ConfirmResult{
+		User:   user.User{ID: "u1", Email: "a@b.com"},
+		Tokens: auth.Tokens{Access: "a", Refresh: "r", AccessExpiresAt: now.Add(time.Hour), RefreshExpiresAt: now.Add(time.Hour)},
+	}
+}
+
+func TestRefreshTokenTooLongIsRejected(t *testing.T) {
+	m := newMocks(t)
+	long := strings.Repeat("a", 4097)
+	r := m.do("POST", "/api/v1/auth/refresh", strings.NewReader(`{"refreshToken":"`+long+`"}`), jsonBody)
+	if r.Status != 400 || r.Body["error"] != "refreshToken 값이 올바르지 않아요" {
+		t.Errorf("token too long: %d %v", r.Status, r.Body)
+	}
+}
+
+func TestListContractsRejectsUnknownStatus(t *testing.T) {
+	m := newMocks(t)
+	m.loggedIn()
+	r := m.do("GET", "/api/v1/contracts?status=weird", nil, bearer)
+	if r.Status != 400 || r.Body["error"] != "status 값이 올바르지 않아요" {
+		t.Errorf("unknown status: %d %v", r.Status, r.Body)
 	}
 }

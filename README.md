@@ -165,6 +165,7 @@ Variables: `PORT` (web, default 3000) · `SERVER_PORT` (default 4000) · `AI_POR
 1. Add the table in a migration (`make migration NAME=...`) and the queries in `server/internal/database/queries/`.
 2. Put the rules in `domain/<name>`, the flow and ports in `service/<name>`, the repository in `database/`, and the handler in `server/`.
 3. Describe the endpoint in `server/api/openapi.yaml`, then `make gen`.
+   Put request-shape rules (required, length, allowed values) on the fields with `x-oapi-codegen-extra-tags` (`validate: "required,max=254"`). `make gen` copies them onto the generated struct, and the handler checks them with `validateBody(body)`. Add the user-facing Korean message for each field to `fieldMessages` in `server/internal/server/validate.go`. Rules that need state or time (cooldowns, file type) stay in `domain/`.
 4. Call it from `web/src/lib/api`.
 
 `make domain NAME=...` creates the empty `domain` and `service` packages.

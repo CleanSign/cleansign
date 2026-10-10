@@ -29,6 +29,9 @@ func (h *handler) SendEmailCode(c echo.Context) error {
 	if err := decodeJSON(c, &body); err != nil {
 		return err
 	}
+	if err := validateBody(body); err != nil {
+		return err
+	}
 	wait, err := h.Auth.SendCode(c.Request().Context(), body.Email)
 	if err != nil {
 		return err
@@ -41,8 +44,12 @@ func (h *handler) ConfirmEmailCode(c echo.Context) error {
 	if err := decodeJSON(c, &body); err != nil {
 		return err
 	}
+	body.Code = strings.TrimSpace(body.Code) // 앞뒤 공백은 허용한다(검증 전에 정리)
+	if err := validateBody(body); err != nil {
+		return err
+	}
 	remember := body.RememberDevice != nil && *body.RememberDevice
-	res, err := h.Auth.Confirm(c.Request().Context(), body.Email, strings.TrimSpace(body.Code), remember)
+	res, err := h.Auth.Confirm(c.Request().Context(), body.Email, body.Code, remember)
 	if err != nil {
 		return err
 	}
@@ -54,6 +61,9 @@ func (h *handler) RefreshTokens(c echo.Context) error {
 	var body api.RefreshRequest
 	if err := json.NewDecoder(io.LimitReader(c.Request().Body, maxJSONBody)).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
 		return errBadBody
+	}
+	if err := validateBody(body); err != nil {
+		return err
 	}
 	token := cookieValue(c, refreshCookie)
 	if body.RefreshToken != nil && *body.RefreshToken != "" {

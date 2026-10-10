@@ -42,6 +42,7 @@ linters:
             - go.uber.org/mock
             - $gostd
             - github.com/labstack/echo
+            - github.com/go-playground/validator
             - github.com/CleanSign/cleansign/server/api
             - github.com/CleanSign/cleansign/server/internal/domain
             - github.com/CleanSign/cleansign/server/internal/service

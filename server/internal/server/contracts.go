@@ -48,6 +48,10 @@ func (h *handler) ListContracts(c echo.Context, params api.ListContractsParams) 
 	if err != nil {
 		return err
 	}
+	// page/limit are not validated on purpose: correcting bad values to defaults is the rule (domain.NormalizePage). Only status is checked
+	if err := validateBody(params); err != nil {
+		return err
+	}
 	ctx := c.Request().Context()
 	page, limit := contract.NormalizePage(deref(params.Page), deref(params.Limit))
 

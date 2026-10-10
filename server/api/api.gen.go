@@ -87,8 +87,9 @@ type ClauseDetail struct {
 
 // ConfirmEmailCodeRequest defines model for ConfirmEmailCodeRequest.
 type ConfirmEmailCodeRequest struct {
-	Code           string `json:"code"`
-	Email          string `json:"email"`
+	// Code 메일로 받은 6자리 숫자
+	Code           string `json:"code" validate:"required,len=6,numeric"`
+	Email          string `json:"email" validate:"required,max=254"`
 	RememberDevice *bool  `json:"rememberDevice,omitempty"`
 }
 
@@ -104,9 +105,14 @@ type Consent struct {
 
 // ConsentRequest defines model for ConsentRequest.
 type ConsentRequest struct {
+	// Marketing 마케팅 수신 동의(선택). boolean이 아니면 false로 본다
 	Marketing *bool `json:"marketing,omitempty"`
-	Privacy   bool  `json:"privacy"`
-	Terms     bool  `json:"terms"`
+
+	// Privacy 개인정보처리방침 동의. 반드시 true여야 한다
+	Privacy bool `json:"privacy" validate:"required"`
+
+	// Terms 이용약관 동의. 반드시 true여야 한다
+	Terms bool `json:"terms" validate:"required"`
 }
 
 // Contract defines model for Contract.
@@ -189,7 +195,8 @@ type Progress struct {
 
 // RefreshRequest defines model for RefreshRequest.
 type RefreshRequest struct {
-	RefreshToken *string `json:"refreshToken,omitempty"`
+	// RefreshToken 없으면 쿠키(`cs_refresh`)를 쓴다
+	RefreshToken *string `json:"refreshToken,omitempty" validate:"omitempty,max=4096"`
 }
 
 // RiskItem defines model for RiskItem.
@@ -209,7 +216,8 @@ type RiskItem struct {
 
 // SendEmailCodeRequest defines model for SendEmailCodeRequest.
 type SendEmailCodeRequest struct {
-	Email string `json:"email"`
+	// Email 앞뒤 공백과 대소문자는 서버가 정리한다. 형식 검사는 domain이 한다
+	Email string `json:"email" validate:"required,max=254"`
 }
 
 // SendEmailCodeResponse defines model for SendEmailCodeResponse.
@@ -238,7 +246,7 @@ type ListContractsParams struct {
 	Limit *string `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Status `active`면 완료·진행 중만(실패 제외). 홈 화면의 최근 목록용
-	Status *ListContractsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	Status *ListContractsParamsStatus `form:"status,omitempty" json:"status,omitempty" validate:"omitempty,oneof=active"`
 }
 
 // ListContractsParamsStatus defines parameters for ListContracts.

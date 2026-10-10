@@ -607,3 +607,19 @@ func TestHealthAndUnknownRoute(t *testing.T) {
 		t.Errorf("없는 경로도 {error} 모양: %d %s", r.Status, r.Raw)
 	}
 }
+
+func TestRequestValidationFromSpec(t *testing.T) {
+	e := newEnv(t)
+	token := e.login("a@b.com")
+
+	// 알 수 없는 status는 400 (page/limit은 보정이라 400이 아니다)
+	wantErr(t, e.get("/api/v1/contracts?status=weird", token), 400, "status 값이 올바르지 않아요")
+	if r := e.get("/api/v1/contracts?page=abc&limit=-1&status=active", token); r.Status != 200 {
+		t.Errorf("page/limit 보정, status=active: %d %s", r.Status, r.Raw)
+	}
+	// 인증 요청: 빈 값과 잘못된 모양의 코드는 service에 닿기 전에 400
+	wantErr(t, e.json("POST", "/api/v1/auth/email/code", "", map[string]any{"email": ""}), 400, "이메일 형식이 올바르지 않아요")
+	wantErr(t, e.json("POST", "/api/v1/auth/email/confirm", "", map[string]any{"email": "a@b.com", "code": "12ab"}), 400, "인증코드가 올바르지 않아요")
+	// refresh 토큰이 비정상적으로 길면 400
+	wantErr(t, e.json("POST", "/api/v1/auth/refresh", "", map[string]any{"refreshToken": strings.Repeat("x", 5000)}), 400, "refreshToken 값이 올바르지 않아요")
+}
