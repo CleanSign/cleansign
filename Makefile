@@ -100,7 +100,7 @@ gen:
 migration:
 	@[ -n "$(NAME)" ] || { echo "사용법: make migration NAME=add_article_table"; exit 1; }
 	@command -v goose >/dev/null || { echo "goose가 필요해요: brew install goose"; exit 1; }
-	goose -dir server/internal/database/migrations create "$(NAME)" sql
+	goose -dir server/internal/database/migrations -s create "$(NAME)" sql
 
 # Scaffold the new domain's domain/service and print what to do next
 domain:
