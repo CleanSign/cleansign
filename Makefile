@@ -7,7 +7,7 @@
 #   make stop                Find and stop web/server/AI server left over from make run, by port
 #   make stop-ollama         Unload the model and stop `ollama serve`
 #   make check               Go (vet, tests, lint) + web (types, lint) + AI server tests
-#   make gen                 Regenerate code from the API spec (server/api/openapi.yaml) and SQL (queries/)
+#   make gen                 Regenerate code: handler interfaces, DB code, web types, Service interfaces, test mocks
 #   make migration NAME=x    Create a new migration file (server/internal/database/migrations)
 #   make domain NAME=article Scaffold a new domain (server/internal/domain, service/article)
 #   make db-reset            Drop and recreate the dev DB (cleansign) (all data is lost)
@@ -85,10 +85,14 @@ status:
 	@printf "\n서버      "; curl -sf localhost:$(SERVER_PORT)/healthz 2>/dev/null || echo "꺼짐 (:$(SERVER_PORT))"
 	@printf "\nweb       "; lsof -nP -iTCP:$(PORT) -sTCP:LISTEN >/dev/null 2>&1 && echo "실행 중 (:$(PORT))" || echo "꺼짐 (:$(PORT))"
 
-# Regenerate code from the API spec and SQL. Commit the generated output (CI checks that it is up to date)
+# Regenerate code from its source of truth. Commit the generated output (CI checks that it is up to date)
+#   API spec (openapi.yaml)      -> handler interface, web types
+#   SQL (queries/*.sql)          -> DB query code
+#   service structs              -> Service interfaces (service_interface.go)
+#   ports + Service interfaces   -> test mocks (*_mock_test.go)
 gen:
 	@command -v sqlc >/dev/null || { echo "sqlc가 필요해요: brew install sqlc"; exit 1; }
-	cd server && go generate ./api/ && sqlc generate
+	cd server && go generate ./... && sqlc generate
 	@[ -d web/node_modules ] || (cd web && npm install)
 	cd web && npm run -s gen:api
 

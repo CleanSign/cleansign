@@ -152,7 +152,7 @@ To send real emails with Gmail, set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`,
 | `make stop` | Stop listeners on the web/server/AI ports (DB and Ollama keep running) |
 | `make stop-ollama` | Unload the model and stop `ollama serve` |
 | `make check` | `go vet` + `go test` + golangci-lint, `tsc` + `eslint`, `pytest` |
-| `make gen` | Regenerate code from `server/api/openapi.yaml` (server interface, web types) and `server/internal/database/queries` (sqlc) |
+| `make gen` | Regenerate everything that is derived: handler interface and web types (from `openapi.yaml`), DB code (sqlc), `Service` interfaces (`service_interface.go`) and test mocks (`*_mock_test.go`). Commit the output; CI fails if it is stale |
 | `make migration NAME=x` | Create a new migration file (applied automatically when the server starts) |
 | `make domain NAME=article` | Scaffold a new domain (`server/internal/domain` and `service`) |
 | `make db-reset` | Drop and recreate the development database |
@@ -168,3 +168,14 @@ Variables: `PORT` (web, default 3000) · `SERVER_PORT` (default 4000) · `AI_POR
 4. Call it from `web/src/lib/api`.
 
 `make domain NAME=...` creates the empty `domain` and `service` packages.
+
+### Generated files (do not edit by hand)
+
+| File | Generated from | By |
+|---|---|---|
+| `server/api/api.gen.go`, `web/src/lib/api/schema.d.ts` | `server/api/openapi.yaml` | oapi-codegen, openapi-typescript |
+| `server/internal/database/sqlc/` | `database/queries/*.sql` + migrations | sqlc |
+| `server/internal/service/*/service_interface.go` | the `service` struct's exported methods | ifacemaker |
+| `server/internal/service/*/*_mock_test.go`, `server/internal/server/service_*_mock_test.go` | ports and `Service` interfaces | mockgen (gomock) |
+
+Handlers depend on the `Service` interfaces, so handler tests run with mocks and no database (`server/internal/server/handler_test.go`). The mocks are `_test.go` files, so they are not part of the production build.

@@ -40,8 +40,8 @@ type Overrides struct {
 
 type App struct {
 	Echo      *echo.Echo
-	Contracts *contractsvc.Service
-	Auth      *authsvc.Service
+	Contracts contractsvc.Service
+	Auth      authsvc.Service
 
 	pool *pgxpool.Pool
 	log  *slog.Logger

@@ -15,7 +15,11 @@ import (
 	"github.com/CleanSign/cleansign/server/internal/shared/ids"
 )
 
-type Service struct {
+// 생성 패키지 이름을 임시로 다르게 주는 이유: domain/auth와 이름이 같으면 생성기가 `auth.` 접두사를 지워 버린다.
+//
+//go:generate go tool ifacemaker -f service.go -s service -i Service -p authgen -o service_interface.go -y "Service는 auth 흐름의 공개 메서드다. handler가 이 인터페이스에 의존하고, 테스트에서는 mock으로 바꾼다."
+//go:generate perl -pi -e "s/^package authgen/package auth/; s/auth[.]ConfirmResult/ConfirmResult/g" service_interface.go
+type service struct {
 	codes      CodeRepository
 	users      UserStore
 	sessions   SessionRepository
@@ -26,13 +30,13 @@ type Service struct {
 	log        *slog.Logger
 }
 
-func NewService(codes CodeRepository, users UserStore, sessions SessionRepository, mailer Mailer, tokens TokenIssuer, clk clock.Clock, codeSecret string, log *slog.Logger) *Service {
-	return &Service{codes: codes, users: users, sessions: sessions, mailer: mailer, tokens: tokens, clock: clk, codeSecret: codeSecret, log: log}
+func NewService(codes CodeRepository, users UserStore, sessions SessionRepository, mailer Mailer, tokens TokenIssuer, clk clock.Clock, codeSecret string, log *slog.Logger) Service {
+	return &service{codes: codes, users: users, sessions: sessions, mailer: mailer, tokens: tokens, clock: clk, codeSecret: codeSecret, log: log}
 }
 
 // SendCode sends a 6-digit verification code by email. Resending requires the cooldown to have passed.
 // The returned value is how long to wait before the next request.
-func (s *Service) SendCode(ctx context.Context, rawEmail string) (time.Duration, error) {
+func (s *service) SendCode(ctx context.Context, rawEmail string) (time.Duration, error) {
 	email, err := user.NormalizeEmail(rawEmail)
 	if err != nil {
 		return 0, err
@@ -78,7 +82,7 @@ type ConfirmResult struct {
 }
 
 // Confirm verifies the code and logs in. An unseen email is signed up.
-func (s *Service) Confirm(ctx context.Context, rawEmail, code string, rememberDevice bool) (ConfirmResult, error) {
+func (s *service) Confirm(ctx context.Context, rawEmail, code string, rememberDevice bool) (ConfirmResult, error) {
 	email, err := user.NormalizeEmail(rawEmail)
 	if err != nil {
 		return ConfirmResult{}, err
@@ -131,7 +135,7 @@ func (s *Service) Confirm(ctx context.Context, rawEmail, code string, rememberDe
 	return ConfirmResult{User: u, Tokens: tokens}, nil
 }
 
-func (s *Service) loginOrCreate(ctx context.Context, email string, now time.Time) (user.User, error) {
+func (s *service) loginOrCreate(ctx context.Context, email string, now time.Time) (user.User, error) {
 	u, err := s.users.GetByEmail(ctx, email)
 	if err == nil {
 		return u, nil
@@ -155,7 +159,7 @@ func (s *Service) loginOrCreate(ctx context.Context, email string, now time.Time
 	return created, nil
 }
 
-func (s *Service) issue(userID string, session auth.Session, now time.Time) (auth.Tokens, error) {
+func (s *service) issue(userID string, session auth.Session, now time.Time) (auth.Tokens, error) {
 	access, accessExp, err := s.tokens.Access(userID, session.ID, now)
 	if err != nil {
 		return auth.Tokens{}, err
@@ -168,7 +172,7 @@ func (s *Service) issue(userID string, session auth.Session, now time.Time) (aut
 }
 
 // Refresh issues a new access token from the refresh token. The refresh token itself does not change.
-func (s *Service) Refresh(ctx context.Context, refreshToken string) (auth.Tokens, error) {
+func (s *service) Refresh(ctx context.Context, refreshToken string) (auth.Tokens, error) {
 	claims, err := s.tokens.Parse(refreshToken, false)
 	if err != nil || claims.Kind != KindRefresh {
 		return auth.Tokens{}, errs.ErrUnauthorized
@@ -185,7 +189,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (auth.Tokens
 }
 
 // Authenticate verifies the user and session the access token points to. Logged-out sessions are rejected.
-func (s *Service) Authenticate(ctx context.Context, accessToken string) (userID, sessionID string, err error) {
+func (s *service) Authenticate(ctx context.Context, accessToken string) (userID, sessionID string, err error) {
 	claims, err := s.tokens.Parse(accessToken, false)
 	if err != nil || claims.Kind != KindAccess {
 		return "", "", errs.ErrUnauthorized
@@ -197,7 +201,7 @@ func (s *Service) Authenticate(ctx context.Context, accessToken string) (userID,
 	return claims.UserID, session.ID, nil
 }
 
-func (s *Service) activeSession(ctx context.Context, claims Claims) (auth.Session, error) {
+func (s *service) activeSession(ctx context.Context, claims Claims) (auth.Session, error) {
 	session, err := s.sessions.Get(ctx, claims.SessionID)
 	if err != nil {
 		if errors.Is(err, errs.ErrNotFound) {
@@ -213,7 +217,7 @@ func (s *Service) activeSession(ctx context.Context, claims Claims) (auth.Sessio
 
 // Logout revokes the session the token points to. Even an expired token revokes it if the signature is valid.
 // It is not an error if it was already revoked or there is no token.
-func (s *Service) Logout(ctx context.Context, token string) error {
+func (s *service) Logout(ctx context.Context, token string) error {
 	if token == "" {
 		return nil
 	}
@@ -225,12 +229,12 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 }
 
 // RevokeAll revokes all of the user's sessions.
-func (s *Service) RevokeAll(ctx context.Context, userID string) error {
+func (s *service) RevokeAll(ctx context.Context, userID string) error {
 	return s.sessions.DeleteByUser(ctx, userID)
 }
 
 // PurgeExpired deletes expired verification codes and sessions.
-func (s *Service) PurgeExpired(ctx context.Context) error {
+func (s *service) PurgeExpired(ctx context.Context) error {
 	now := s.clock.Now()
 	codes, err := s.codes.DeleteExpired(ctx, now)
 	if err != nil {

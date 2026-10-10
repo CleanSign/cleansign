@@ -179,7 +179,7 @@ func (f fakeTokens) Parse(token string, ignoreExpiry bool) (Claims, error) {
 }
 
 type fixture struct {
-	svc   *Service
+	svc   Service
 	store *fakeStore
 	mail  *fakeMailer
 	clk   *clock.Fixed

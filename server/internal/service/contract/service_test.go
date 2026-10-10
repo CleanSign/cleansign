@@ -162,7 +162,7 @@ func (a *fakeAnalyzer) Analyze(ctx context.Context, _ string, _ []byte, onProgre
 	return a.result, a.err
 }
 
-func newService(repo *fakeRepo, an *fakeAnalyzer) (*Service, *clock.Fixed) {
+func newService(repo *fakeRepo, an *fakeAnalyzer) (Service, *clock.Fixed) {
 	clk := &clock.Fixed{T: time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	return NewService(repo, an, clk, log, time.Minute), clk
@@ -179,7 +179,7 @@ func sampleResult() contract.Analysis {
 	}
 }
 
-func submit(t *testing.T, s *Service, user string) string {
+func submit(t *testing.T, s Service, user string) string {
 	t.Helper()
 	id, err := s.Submit(context.Background(), user, "a.pdf", "application/pdf", 4, strings.NewReader("%PDF"))
 	if err != nil {
@@ -188,7 +188,7 @@ func submit(t *testing.T, s *Service, user string) string {
 	return id
 }
 
-func waitDone(t *testing.T, s *Service) {
+func waitDone(t *testing.T, s Service) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

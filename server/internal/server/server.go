@@ -17,13 +17,17 @@ import (
 	usersvc "github.com/CleanSign/cleansign/server/internal/service/user"
 )
 
+//go:generate go tool mockgen -typed -package=server -destination=service_contract_mock_test.go -mock_names=Service=MockContractService github.com/CleanSign/cleansign/server/internal/service/contract Service
+//go:generate go tool mockgen -typed -package=server -destination=service_auth_mock_test.go -mock_names=Service=MockAuthService github.com/CleanSign/cleansign/server/internal/service/auth Service
+//go:generate go tool mockgen -typed -package=server -destination=service_user_mock_test.go -mock_names=Service=MockUserService github.com/CleanSign/cleansign/server/internal/service/user Service
+
 const apiBase = "/api/v1"
 
 // Deps are the services and settings the handlers call.
 type Deps struct {
-	Auth         *authsvc.Service
-	Users        *usersvc.Service
-	Contracts    *contractsvc.Service
+	Auth         authsvc.Service
+	Users        usersvc.Service
+	Contracts    contractsvc.Service
 	Log          *slog.Logger
 	CookieSecure bool
 	// Health checks the dependent service (DB) at /healthz.

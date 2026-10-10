@@ -30,16 +30,38 @@ GO
 cat > "$SERVICE_DIR/ports.go" <<GO
 package $NAME
 
-// Defines the outside world this service needs (DB, external services) as interfaces (ports).
-// Implementations live in internal/database or internal/infra.
+import "context"
+
+//go:generate go tool mockgen -typed -source=ports.go -destination=ports_mock_test.go -package=$NAME -self_package=$MODULE/service/$NAME
+
+// Repository is a placeholder port. Describe what this service needs from the outside world (DB, external services)
+// as interfaces here. Implement them in internal/database or internal/infra.
+type Repository interface {
+	Ping(ctx context.Context) error
+}
 GO
 
 cat > "$SERVICE_DIR/service.go" <<GO
-// Package $NAME assembles the flow of $NAME: it calls ports to read data, applies domain rules, and saves.
+// Package $NAME composes the $NAME flow: call ports to read data, apply domain rules, and save.
 package $NAME
 
-import _ "$MODULE/domain/$NAME"
+import "context"
+
+// The interface is generated from the struct below (make gen). The package name is temporary on purpose:
+// if it equals the domain package name, the generator drops the "$NAME." prefix from types.
+//go:generate go tool ifacemaker -f service.go -s service -i Service -p ${NAME}gen -o service_interface.go -y "Service is the public API of the $NAME flow. Handlers depend on this interface; tests replace it with a mock."
+//go:generate perl -pi -e "s/^package ${NAME}gen/package $NAME/" service_interface.go
+type service struct {
+	repo Repository
+}
+
+func NewService(repo Repository) Service { return &service{repo: repo} }
+
+// Example is a placeholder. Delete it and write the real methods.
+func (s *service) Example(ctx context.Context) error { return s.repo.Ping(ctx) }
 GO
+
+(cd server && go generate "./internal/service/$NAME/")
 
 gofmt -l "$DOMAIN_DIR" "$SERVICE_DIR" >/dev/null
 

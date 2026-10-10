@@ -1,5 +1,7 @@
 package contract
 
+//go:generate go tool mockgen -typed -source=ports.go -destination=ports_mock_test.go -package=contract -self_package=github.com/CleanSign/cleansign/server/internal/service/contract
+
 import (
 	"context"
 	"time"

@@ -24,6 +24,7 @@ linters:
           list-mode: strict
           files: ["**/internal/service/**"]
           allow:
+            - go.uber.org/mock
             - $gostd
             - github.com/CleanSign/cleansign/server/internal/domain
             - github.com/CleanSign/cleansign/server/internal/shared
@@ -38,6 +39,7 @@ linters:
           list-mode: strict
           files: ["**/internal/server/**"]
           allow:
+            - go.uber.org/mock
             - $gostd
             - github.com/labstack/echo
             - github.com/CleanSign/cleansign/server/api
