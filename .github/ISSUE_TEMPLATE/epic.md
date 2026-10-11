@@ -1,7 +1,7 @@
 ---
 name: Epic
 about: A large goal that groups several user stories
-title: '[Epic] '
+title: ''
 type: Epic
 assignees: ''
 

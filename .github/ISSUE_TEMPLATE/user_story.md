@@ -1,8 +1,8 @@
 ---
 name: User story
 about: A feature described from the user's point of view
-title: '[Story] '
-type: User Story
+title: ''
+type: User story
 assignees: ''
 
 ---

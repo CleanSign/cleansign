@@ -235,6 +235,22 @@ make migration NAME=create_article
 - **Never edit a migration that was already applied** (by you or by anyone else). Create a new one. To start over locally: `make db-reset`.
 - sqlc reads the migrations as the schema, so run `make gen` afterwards if your queries use the new table.
 
+## Issues, labels and the project board
+
+| What | Where | Values |
+|---|---|---|
+| **Kind** | Issue Type (set by the issue template) | Epic, User story, Bug |
+| **Area** | Labels (pick one or more) | `web`, `server`, `ai-service`, `mobile`, `infra`, `documentation` |
+| **Status** | Project field | Todo, In Progress, Done |
+| **Priority** | Issue field (organization) | Critical, Must, Should, Could |
+| **Size** | Issue field `Effort` (organization) | S (up to half a day), M (1-2 days), L (3-5 days) |
+
+- Create issues from the templates in `.github/ISSUE_TEMPLATE/` (User story, Epic, Bug). The template sets the Issue Type, so there are no `epic`, `user-story` or `bug` labels.
+- Area labels follow the folders. An issue that touches both screens and the API gets both `web` and `server`.
+- Dependency update PRs from dependabot get `dependencies` plus the area label of the folder they update.
+- Priority meaning: **Critical** (drop everything: security risk or data loss), **Must** (required for the first release), **Should** (important, the release can ship without it), **Could** (nice to have, when time allows). The first release is "free analysis"; see the MoSCoW table in `docs/01-fr.md`.
+- Priority and Effort are **organization issue fields**, not labels and not project-only fields. They show in the issue sidebar and can be added to any project view (view menu > Fields), so the label list stays short. Status is the only project field. Set them on the issue page or with `gh api -X POST repos/CleanSign/cleansign/issues/<n>/issue-field-values`. A story that is larger than `L` should be split or made an Epic.
+
 ## Adding a feature
 
 The order that avoids rework: contract first, then rules, then the outside world.

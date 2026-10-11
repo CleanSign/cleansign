@@ -1,7 +1,7 @@
 ---
 name: Bug
 about: Something is not working as expected
-title: '[Bug] '
+title: ''
 type: Bug
 assignees: ''
 
