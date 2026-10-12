@@ -278,4 +278,3 @@ Request-shape rules (required, length, allowed values) go on the spec fields wit
 | `server/internal/service/*/*_mock_test.go`, `server/internal/server/service_*_mock_test.go` | ports and `Service` interfaces | mockgen (gomock) |
 
 Handlers depend on the `Service` interfaces, so handler tests run with mocks and no database (`server/internal/server/handler_test.go`). The mocks are `_test.go` files, so they are not part of the production build.
-.
