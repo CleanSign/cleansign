@@ -25,6 +25,7 @@ export function ListRow({
   icon,
   tone,
   title,
+  badge,
   sub,
   trailing,
 }: {
@@ -32,15 +33,20 @@ export function ListRow({
   icon: React.ReactNode;
   tone?: keyof typeof TONES;
   title: string;
+  /** Small tag shown next to the title, such as "for reference only" */
+  badge?: React.ReactNode;
   sub?: string;
   trailing?: React.ReactNode;
 }) {
   return (
     <Link href={href} className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3.5">
       <IconTile tone={tone}>{icon}</IconTile>
-      <div className="flex grow flex-col gap-0.5">
-        <span className="text-[13.5px] font-bold text-ink">{title}</span>
-        {sub && <span className="text-[11.5px] text-ink-3">{sub}</span>}
+      <div className="flex min-w-0 grow flex-col gap-0.5">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          <span className="text-[13.5px] font-bold text-ink">{title}</span>
+          {badge && <span>{badge}</span>}
+        </div>
+        {sub && <span className="break-words text-[11.5px] text-ink-3">{sub}</span>}
       </div>
       {trailing ?? (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#52565E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

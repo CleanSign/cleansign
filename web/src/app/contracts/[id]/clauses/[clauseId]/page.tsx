@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getClause, requireUser } from "@/lib/api/server";
-import { SEVERITY_CHIP, clauseLabel, formatWon } from "@/lib/format";
+import { SEVERITY_CHIP, clauseLabel, formatWon, isLowSample } from "@/lib/format";
 import { Tag } from "@/components/ui/tag";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -20,6 +20,7 @@ export default async function ClauseDetailPage({
   await requireUser();
   const { id, clauseId } = await params;
   const clause = await getClause(id, clauseId);
+  const lowSample = isLowSample(clause.clauseType);
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-bg">
@@ -31,6 +32,11 @@ export default async function ClauseDetailPage({
             </svg>
           </Link>
           <span className="text-[14.5px] font-bold text-ink">{clauseLabel(clause.clauseType)}</span>
+          {lowSample && (
+            <span>
+              <Tag tone="neutral">참고용</Tag>
+            </span>
+          )}
         </div>
 
         <Section title="계약서 원문">
@@ -49,6 +55,11 @@ export default async function ClauseDetailPage({
               <span className="text-[11.5px] leading-relaxed text-ink-3">
                 분쟁이 생겼을 때 과거 조정 사례에서 인정된 비율을 반영한 참고용 추정이고, 칩은 보증금에 비한 손실 규모예요
               </span>
+              {lowSample && (
+                <span className="text-[11.5px] leading-relaxed text-warn">
+                  이 유형은 아직 쌓인 사례가 적어서 금액을 참고로만 봐 주세요
+                </span>
+              )}
             </div>
           </Section>
         )}

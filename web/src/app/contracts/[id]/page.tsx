@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { getContract, requireUser } from "@/lib/api/server";
-import { SEVERITY_CHIP, clauseLabel, formatDate, formatWon, stripPdf } from "@/lib/format";
+import { SEVERITY_CHIP, clauseLabel, formatDate, formatWon, isLowSample, stripPdf } from "@/lib/format";
+import { riskScoreEnabled } from "@/lib/features";
 import { ConfirmDelete } from "@/components/ui/confirm-delete";
 import { Tag } from "@/components/ui/tag";
 import { ListRow } from "@/components/ui/list-row";
+import { RiskScore } from "@/components/ui/risk-score";
 import { AnalysisProgress } from "./analysis-progress";
 
 const DOC_ICON = (
@@ -68,6 +70,7 @@ export default async function ContractResultPage({ params }: { params: Promise<{
   const warnings = contract.warnings;
   const range = contract.lossRange;
   const sorted = [...clauses].sort((a, b) => b.lossAmount - a.lossAmount);
+  const showScore = riskScoreEnabled() && (contract.riskScore !== null || contract.grade !== null);
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-bg">
@@ -85,6 +88,12 @@ export default async function ContractResultPage({ params }: { params: Promise<{
           <span className="break-all text-[13.5px] font-bold text-ink">{stripPdf(contract.fileName)}</span>
           <span className="text-[11.5px] text-ink-3">{formatDate(new Date(contract.createdAt))} 분석</span>
         </div>
+
+        {showScore && (
+          <div className="pt-4">
+            <RiskScore score={contract.riskScore} grade={contract.grade} />
+          </div>
+        )}
 
         <div className="pt-4">
           {count === 0 ? (
@@ -137,9 +146,10 @@ export default async function ContractResultPage({ params }: { params: Promise<{
                   href={`/contracts/${contract.id}/clauses/${c.id}`}
                   icon={DOC_ICON}
                   title={clauseLabel(c.clauseType)}
+                  badge={isLowSample(c.clauseType) && <Tag tone="neutral">참고용</Tag>}
                   sub={c.original}
                   trailing={
-                    <div className="flex flex-col items-end gap-1">
+                    <div className="flex shrink-0 flex-col items-end gap-1">
                       <span className="whitespace-nowrap text-xs font-bold text-ink">
                         {c.lossAmount > 0 ? formatWon(c.lossAmount) : "금액 미산출"}
                       </span>
