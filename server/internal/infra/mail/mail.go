@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	subject = "Clean Sign 인증코드"
+	subjectFmt = "[Clean Sign] 인증코드 %s"
 	// Client-side timeout used when the context has no deadline.
 	defaultTimeout = 15 * time.Second
 	// As in the web (TS) code, the example host is treated as "not configured".
@@ -152,7 +152,7 @@ func buildMessage(cfg Config, to, code string, ttl time.Duration) (*gomail.Msg, 
 	if err := msg.To(to); err != nil {
 		return nil, fmt.Errorf("set to: %w", err)
 	}
-	msg.Subject(subject)
+	msg.Subject(fmt.Sprintf(subjectFmt, code))
 	msg.SetBodyString(gomail.TypeTextPlain, fmt.Sprintf(textFmt, code, d.Minutes))
 	msg.AddAlternativeString(gomail.TypeTextHTML, htmlBuf.String())
 	return msg, nil

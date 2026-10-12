@@ -138,7 +138,11 @@ To run everything in containers instead: `docker compose up --build` (the AI ser
 | `web/.env` | `SERVER_URL`, `COOKIE_SECURE` (see `web/.env.example`). `SERVER_URL` is fixed at build time for production images |
 | `ai-service/.env` | model settings (see `ai-service/.env.example`) |
 
-To send real emails with Gmail, set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, your address as `SMTP_USER`/`SMTP_FROM`, and an [app password](https://support.google.com/accounts/answer/185833) as `SMTP_PASSWORD`. Gmail limits daily sending, so use a transactional email service in production.
+To send real emails with Gmail, set `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, your address as `SMTP_USER`/`SMTP_FROM`, and an [app password](https://support.google.com/accounts/answer/185833) as `SMTP_PASSWORD`. Gmail caps sending at about 500 mails per day for a personal account and 2,000 per day for Google Workspace, and `From` is rewritten to the account address, so it is for development and demos only.
+
+For production use [Resend](https://resend.com/docs/send-with-smtp) over SMTP: `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_USER=resend`, the API key as `SMTP_PASSWORD`, and `SMTP_FROM` on a domain verified in Resend (free tier: 3,000 mails/month, 100/day). Amazon SES works the same way (`email-smtp.<region>.amazonaws.com:587` with SMTP credentials; leave the sandbox first). No code changes are needed: the SMTP mailer in `server/internal/infra/mail/` is the only `Mailer` implementation and the provider is just configuration. To check real delivery (inbox and spam folder), run `MAIL_TEST_TO=you@example.com go test -run TestSendRealMail -v ./internal/infra/mail/` from `server/` with the `SMTP_*` variables exported.
+
+If the mail provider fails, `POST /auth/email/code` answers `503` with a user-facing message and the pending code is deleted, so the user can retry right away without waiting for the 60-second cooldown. There is no automatic retry on the server.
 
 ## Make Commands
 
