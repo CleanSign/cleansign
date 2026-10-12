@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -307,5 +308,14 @@ func TestListContractsRejectsUnknownStatus(t *testing.T) {
 	r := m.do("GET", "/api/v1/contracts?status=weird", nil, bearer)
 	if r.Status != 400 || r.Body["error"] != "status 값이 올바르지 않아요" {
 		t.Errorf("unknown status: %d %v", r.Status, r.Body)
+	}
+}
+
+func TestSendCodeMailDown(t *testing.T) {
+	m := newMocks(t)
+	m.auth.EXPECT().SendCode(gomock.Any(), "a@b.com").Return(time.Duration(0), fmt.Errorf("%w: smtp down", auth.ErrMailSend))
+	r := m.do("POST", "/api/v1/auth/email/code", strings.NewReader(`{"email":"a@b.com"}`), jsonBody)
+	if r.Status != 503 || r.Body["error"] != auth.ErrMailSend.Error() {
+		t.Errorf("503 with the mail message: %d %v", r.Status, r.Body)
 	}
 }
