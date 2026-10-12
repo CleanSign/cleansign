@@ -1,11 +1,13 @@
 -- name: UpsertEmailCode :exec
-INSERT INTO email_codes (email, code_hash, attempts, sent_at, expires_at)
-VALUES ($1, $2, 0, $3, $4)
+INSERT INTO email_codes (email, code_hash, attempts, sent_at, expires_at, send_count, window_started_at)
+VALUES ($1, $2, 0, $3, $4, $5, $6)
 ON CONFLICT (email) DO UPDATE
 SET code_hash = EXCLUDED.code_hash,
     attempts = 0,
     sent_at = EXCLUDED.sent_at,
-    expires_at = EXCLUDED.expires_at;
+    expires_at = EXCLUDED.expires_at,
+    send_count = EXCLUDED.send_count,
+    window_started_at = EXCLUDED.window_started_at;
 
 -- name: GetEmailCode :one
 SELECT * FROM email_codes WHERE email = $1;

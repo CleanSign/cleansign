@@ -81,3 +81,31 @@ func TestSessionIsActive(t *testing.T) {
 		t.Error("만료 시각 전까지만 유효하다")
 	}
 }
+
+func TestCanResendWindowLimit(t *testing.T) {
+	full := EmailCode{SentAt: t0, SendCount: MaxSendsPerWindow, WindowStartedAt: t0.Add(-30 * time.Minute)}
+	// Cooldown passed, but the window is full: wait until the window ends.
+	if wait, ok := full.CanResend(t0.Add(ResendCooldown)); ok || wait != 30*time.Minute-ResendCooldown {
+		t.Errorf("full window must block until it ends: %v %v", wait, ok)
+	}
+	if _, ok := full.CanResend(t0.Add(30 * time.Minute)); !ok {
+		t.Error("a new window starts once the old one ended")
+	}
+	almost := EmailCode{SentAt: t0, SendCount: MaxSendsPerWindow - 1, WindowStartedAt: t0}
+	if _, ok := almost.CanResend(t0.Add(ResendCooldown)); !ok {
+		t.Error("below the limit it is allowed")
+	}
+}
+
+func TestNextSend(t *testing.T) {
+	if n, w := (EmailCode{}).NextSend(t0); n != 1 || !w.Equal(t0) {
+		t.Errorf("first send starts a window: %d %v", n, w)
+	}
+	c := EmailCode{SendCount: 2, WindowStartedAt: t0}
+	if n, w := c.NextSend(t0.Add(10 * time.Minute)); n != 3 || !w.Equal(t0) {
+		t.Errorf("inside the window it counts up: %d %v", n, w)
+	}
+	if n, w := c.NextSend(t0.Add(SendWindow)); n != 1 || !w.Equal(t0.Add(SendWindow)) {
+		t.Errorf("after the window it restarts: %d %v", n, w)
+	}
+}
