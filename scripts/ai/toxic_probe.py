@@ -1,14 +1,14 @@
 """Feed 100 toxic clauses (toxic_clauses_100.csv) to the classifier and measure the detection rate (share judged not normal).
 Borderline cases whose validity is valid / possibly valid / dismissed / advisory are excluded. Type match uses automatic mapping (before review), so it is for reference only.
 Usage: FAST=1 python3 toxic_probe.py [model name]"""
-import csv, os, sys, pathlib, collections
+import os, sys, collections
 os.environ.setdefault("FAST", "1")
 sys.argv = [sys.argv[0], *(sys.argv[1:2] or ["gemma4:12b"]), "v1"]
 import classify_probe as cp
+from labeling import load  # classify_probe puts scripts/data on sys.path
 
 SKIP = {"유효", "유효 가능", "기각", "권고적"}
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-rows = [r for r in csv.DictReader(open(ROOT / "data/labeling/toxic_clauses_100.csv", encoding="utf-8")) if r["legal_effect_report"] not in SKIP]
+rows = [r for r in load("toxic_clauses_100.csv") if r["legal_effect_report"] not in SKIP]
 hit, same, lat, miss = 0, 0, [], []
 by = collections.defaultdict(lambda: [0, 0])
 for r in rows:

@@ -197,6 +197,8 @@ realized_ratio_conditional)를 완전히 만족하는 이 세션의 첫 실데�
 
 한 행 = 한 사건(case) 안의 한 조항(clause). 한 사건에 조항이 여러 개면 여러 행으로 쪼갠다.
 
+이 폴더의 CSV는 모두 `python3 scripts/data/labeling.py`로 검증한다(CI와 `make check`에서도 실행). 열을 바꾸거나 CSV를 추가하면 그 파일의 `SCHEMAS`도 같이 고친다. 스크립트에서 CSV를 읽을 때는 `csv.DictReader` 대신 `labeling.load()`를 쓴다. 엑셀로 편집했다면 'CSV UTF-8(쉼표로 분리)' 형식으로 저장한다(기본 'CSV'는 CP949라 검증에서 걸린다).
+
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | `case_id` | string | 출처+사건번호, 예: `REB-2025-032` |
@@ -214,7 +216,7 @@ realized_ratio_conditional)를 완전히 만족하는 이 세션의 첫 실데�
 | `dispute_occurred` | bool | 이 조항이 실제 분쟁으로 이어졌는지 |
 | `actual_loss_amount` | int(원), nullable | 조정/판결로 확정된 손해액·공제액. `attribution=mixed`면 이 조항 기여분만 분리 가능할 때만 채우고, 안 되면 비워둔다 |
 | `realized_ratio_conditional` | float[0,1], nullable | `actual_loss_amount / L_max_value`. **오직 `dispute_occurred=true` & `attribution≠mixed`인 행에서만 회귀 학습에 사용** |
-| `outcome` | enum | `임차인전부승` / `임차인일부승` / `임차인패소` / `조정불성립` |
+| `outcome` | enum | `임차인전부승` / `임차인일부승` / `임차인패소` / `조정불성립` / `절충` / `N/A_공식규칙`(`공식해설` 행). 뒤에 `(메모)`를 붙일 수 있다 |
 | `annotator_id` | string | 라벨링한 사람 (일치도 측정용) |
 | `annotation_date` | date | |
 | `notes` | string | 애매한 판단에 대한 자유 서술 |

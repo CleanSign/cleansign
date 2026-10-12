@@ -1,12 +1,12 @@
 """Feed the normal clauses of the standard contract (normal_clauses_standard.csv) to the classifier and count false positives (normal -> risky).
 Usage: FAST=1 python3 normal_probe.py [model name]"""
-import csv, os, sys, pathlib
+import os, sys
 os.environ.setdefault("FAST", "1")
 sys.argv = [sys.argv[0], *(sys.argv[1:2] or ["gemma4:12b"]), "v1"]
 import classify_probe as cp
+from labeling import load  # classify_probe puts scripts/data on sys.path
 
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-rows = list(csv.DictReader(open(ROOT / "data/labeling/normal_clauses_standard.csv", encoding="utf-8")))
+rows = load("normal_clauses_standard.csv")
 fp, lat = 0, []
 for r in rows:
     out, s = cp.ask(r["clause_text_clean"]); lat.append(s)
