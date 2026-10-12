@@ -51,11 +51,16 @@ func (q *Queries) DeleteEmailCode(ctx context.Context, email string) error {
 }
 
 const deleteExpiredEmailCodes = `-- name: DeleteExpiredEmailCodes :execrows
-DELETE FROM email_codes WHERE expires_at < $1
+DELETE FROM email_codes WHERE expires_at < $1 AND window_started_at < $2
 `
 
-func (q *Queries) DeleteExpiredEmailCodes(ctx context.Context, expiresAt time.Time) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteExpiredEmailCodes, expiresAt)
+type DeleteExpiredEmailCodesParams struct {
+	ExpiresAt       time.Time
+	WindowStartedAt time.Time
+}
+
+func (q *Queries) DeleteExpiredEmailCodes(ctx context.Context, arg DeleteExpiredEmailCodesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredEmailCodes, arg.ExpiresAt, arg.WindowStartedAt)
 	if err != nil {
 		return 0, err
 	}
@@ -89,6 +94,20 @@ DELETE FROM sessions WHERE user_id = $1
 
 func (q *Queries) DeleteSessionsByUser(ctx context.Context, userID string) error {
 	_, err := q.db.Exec(ctx, deleteSessionsByUser, userID)
+	return err
+}
+
+const expireEmailCode = `-- name: ExpireEmailCode :exec
+UPDATE email_codes SET expires_at = $2 WHERE email = $1
+`
+
+type ExpireEmailCodeParams struct {
+	Email     string
+	ExpiresAt time.Time
+}
+
+func (q *Queries) ExpireEmailCode(ctx context.Context, arg ExpireEmailCodeParams) error {
+	_, err := q.db.Exec(ctx, expireEmailCode, arg.Email, arg.ExpiresAt)
 	return err
 }
 

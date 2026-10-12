@@ -81,8 +81,18 @@ func TestCodeAndSessionRepos(t *testing.T) {
 	if got, _ := codes.Get(ctx, "a@b.com"); got.CodeHash != "h2" || got.Attempts != 0 {
 		t.Errorf("덮어쓰기: %+v", got)
 	}
-	codes.Upsert(ctx, auth.EmailCode{Email: "old@b.com", CodeHash: "x", SentAt: now, ExpiresAt: now.Add(-time.Hour)})
-	if n, err := codes.DeleteExpired(ctx, now); err != nil || n != 1 {
+	// expiring keeps the row and its send counters; only a row whose window has also ended is purged
+	codes.Upsert(ctx, auth.EmailCode{Email: "old@b.com", CodeHash: "x", SentAt: now, ExpiresAt: now.Add(5 * time.Minute), SendCount: 3, WindowStartedAt: now})
+	if err := codes.Expire(ctx, "old@b.com", now); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := codes.Get(ctx, "old@b.com"); err != nil || !got.ExpiresAt.Equal(now) || got.SendCount != 3 || !got.WindowStartedAt.Equal(now) {
+		t.Errorf("만료 처리 뒤: %+v %v", got, err)
+	}
+	if n, err := codes.DeleteExpired(ctx, now.Add(time.Minute)); err != nil || n != 0 {
+		t.Errorf("윈도우 안 코드 삭제: %d %v", n, err)
+	}
+	if n, err := codes.DeleteExpired(ctx, now.Add(auth.SendWindow+time.Minute)); err != nil || n != 1 {
 		t.Errorf("만료된 코드 삭제: %d %v", n, err)
 	}
 	if err := codes.Delete(ctx, "a@b.com"); err != nil {

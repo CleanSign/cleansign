@@ -38,12 +38,19 @@ func (r *CodeRepo) IncrementAttempts(ctx context.Context, email string) error {
 	return notFound(err)
 }
 
+// Delete removes the row, send counters included. Used when the mail was never sent.
 func (r *CodeRepo) Delete(ctx context.Context, email string) error {
 	return r.q.DeleteEmailCode(ctx, email)
 }
 
+// Expire invalidates the code but keeps the row, so the send counters survive until the window ends.
+func (r *CodeRepo) Expire(ctx context.Context, email string, now time.Time) error {
+	return r.q.ExpireEmailCode(ctx, sqlc.ExpireEmailCodeParams{Email: email, ExpiresAt: now})
+}
+
+// DeleteExpired removes rows whose code has expired and whose send window has ended.
 func (r *CodeRepo) DeleteExpired(ctx context.Context, now time.Time) (int64, error) {
-	return r.q.DeleteExpiredEmailCodes(ctx, now)
+	return r.q.DeleteExpiredEmailCodes(ctx, sqlc.DeleteExpiredEmailCodesParams{ExpiresAt: now, WindowStartedAt: now.Add(-auth.SendWindow)})
 }
 
 // SessionRepo implements the session port.

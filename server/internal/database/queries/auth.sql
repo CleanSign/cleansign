@@ -18,8 +18,11 @@ UPDATE email_codes SET attempts = attempts + 1 WHERE email = $1 RETURNING attemp
 -- name: DeleteEmailCode :exec
 DELETE FROM email_codes WHERE email = $1;
 
+-- name: ExpireEmailCode :exec
+UPDATE email_codes SET expires_at = $2 WHERE email = $1;
+
 -- name: DeleteExpiredEmailCodes :execrows
-DELETE FROM email_codes WHERE expires_at < $1;
+DELETE FROM email_codes WHERE expires_at < $1 AND window_started_at < $2;
 
 -- name: CreateSession :one
 INSERT INTO sessions (id, user_id, remember_device, expires_at)

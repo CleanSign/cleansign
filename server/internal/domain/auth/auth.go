@@ -40,6 +40,8 @@ type RetryAfterError struct{ After time.Duration }
 func (e *RetryAfterError) Error() string { return "잠시 후 다시 요청해 주세요" }
 
 // EmailCode is a verification code (hash) sent by email, along with its confirmation state.
+// The row must outlive the code: once the code is used or expired it is invalidated, not deleted,
+// so SendCount still applies until the window ends.
 type EmailCode struct {
 	Email     string
 	CodeHash  string
