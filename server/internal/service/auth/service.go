@@ -70,7 +70,7 @@ func (s *service) SendCode(ctx context.Context, rawEmail string) (time.Duration,
 		if delErr := s.codes.Delete(ctx, email); delErr != nil {
 			s.log.Warn("failed to delete unsent code", "error", delErr)
 		}
-		return 0, fmt.Errorf("send code mail: %w", err)
+		return 0, fmt.Errorf("%w: %w", auth.ErrMailSend, err)
 	}
 	return auth.ResendCooldown, nil
 }
