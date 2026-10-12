@@ -134,11 +134,13 @@ type ContractDangerClause struct {
 }
 
 type EmailCode struct {
-	Email     string
-	CodeHash  string
-	Attempts  int32
-	SentAt    time.Time
-	ExpiresAt time.Time
+	Email           string
+	CodeHash        string
+	Attempts        int32
+	SentAt          time.Time
+	ExpiresAt       time.Time
+	SendCount       int32
+	WindowStartedAt time.Time
 }
 
 type Session struct {

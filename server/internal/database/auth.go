@@ -20,11 +20,17 @@ func (r *CodeRepo) Get(ctx context.Context, email string) (auth.EmailCode, error
 	if err != nil {
 		return auth.EmailCode{}, notFound(err)
 	}
-	return auth.EmailCode{Email: row.Email, CodeHash: row.CodeHash, Attempts: int(row.Attempts), SentAt: row.SentAt.UTC(), ExpiresAt: row.ExpiresAt.UTC()}, nil
+	return auth.EmailCode{
+		Email: row.Email, CodeHash: row.CodeHash, Attempts: int(row.Attempts), SentAt: row.SentAt.UTC(), ExpiresAt: row.ExpiresAt.UTC(),
+		SendCount: int(row.SendCount), WindowStartedAt: row.WindowStartedAt.UTC(),
+	}, nil
 }
 
 func (r *CodeRepo) Upsert(ctx context.Context, c auth.EmailCode) error {
-	return r.q.UpsertEmailCode(ctx, sqlc.UpsertEmailCodeParams{Email: c.Email, CodeHash: c.CodeHash, SentAt: c.SentAt, ExpiresAt: c.ExpiresAt})
+	return r.q.UpsertEmailCode(ctx, sqlc.UpsertEmailCodeParams{
+		Email: c.Email, CodeHash: c.CodeHash, SentAt: c.SentAt, ExpiresAt: c.ExpiresAt,
+		SendCount: int32(c.SendCount), WindowStartedAt: c.WindowStartedAt,
+	})
 }
 
 func (r *CodeRepo) IncrementAttempts(ctx context.Context, email string) error {
