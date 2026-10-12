@@ -6,6 +6,8 @@ import (
 	"errors"
 	"log/slog"
 	"mime"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -48,7 +50,7 @@ func TestBuildMessage(t *testing.T) {
 	if len(raw) != 1 {
 		t.Fatalf("subject = %v", raw)
 	}
-	if subj, err := new(mime.WordDecoder).DecodeHeader(raw[0]); err != nil || subj != "Clean Sign 인증코드" {
+	if subj, err := new(mime.WordDecoder).DecodeHeader(raw[0]); err != nil || subj != "[Clean Sign] 인증코드 123456" {
 		t.Errorf("subject = %q (%v)", raw[0], err)
 	}
 	if got := m.GetFromString(); len(got) != 1 || !strings.Contains(got[0], "noreply@example.org") {
@@ -142,5 +144,25 @@ func TestSendCodeDevMode(t *testing.T) {
 				t.Errorf("host %q: log missing %q: %s", host, want, out)
 			}
 		}
+	}
+}
+
+// TestSendRealMail sends one real mail. Skipped unless MAIL_TEST_TO is set, e.g.
+//
+//	set -a; . ../../../.env; set +a; MAIL_TEST_TO=me@example.com go test -run TestSendRealMail -v .
+//
+// Then check the inbox *and* the spam folder.
+func TestSendRealMail(t *testing.T) {
+	to := os.Getenv("MAIL_TEST_TO")
+	if to == "" {
+		t.Skip("MAIL_TEST_TO not set")
+	}
+	port, _ := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	s := New(Config{Host: os.Getenv("SMTP_HOST"), Port: port, User: os.Getenv("SMTP_USER"), Password: os.Getenv("SMTP_PASSWORD"), From: os.Getenv("SMTP_FROM")}, nil)
+	if !s.Configured() {
+		t.Fatal("SMTP_HOST not set")
+	}
+	if err := s.SendCode(context.Background(), to, "123456", 5*time.Minute); err != nil {
+		t.Fatal(err)
 	}
 }

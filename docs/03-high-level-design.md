@@ -42,7 +42,7 @@ graph LR
 | server | REST API(`server/api/openapi.yaml`), 이메일 코드 로그인·JWT, 계약서 저장·조회, 백그라운드 분석 | 어니언 구조(domain ← service ← server·database·infra). 모바일이 붙을 직접 접점 |
 | ai-service | PDF 텍스트 추출(OCR 포함) → 마스킹 → 조항 분리 → 분류 → 정량화 | server만 호출한다(`X-Internal-Token`). 브라우저에 노출하지 않음. 모델 교체는 `ai-service/app/llm/`만 |
 | PostgreSQL | 사용자·세션·인증코드·동의·계약서·조항 | 마이그레이션은 server가 시작할 때 적용(goose) |
-| SMTP | 로그인 인증코드 메일 | 미설정이면 server 로그에 코드를 남긴다(개발용). Gmail은 일일 발송 한도가 있어 운영에는 전용 서비스 권장 |
+| SMTP | 로그인 인증코드 메일 | 미설정이면 server 로그에 코드를 남긴다(개발용). Gmail은 일일 500통(Workspace 2,000통) 한도라 개발·시연용. 운영은 Resend SMTP(smtp.resend.com:465) 권장, 코드 변경 없이 `SMTP_*` 설정만 바꾼다. 발송 실패 시 503 + 코드 삭제로 즉시 재요청 가능 |
 
 **지금 없는 것 (설계 당시 그림에는 있었음)**: 오브젝트 스토리지(원본은 저장하지 않음, `contract.file_key`는 비어 있음), 법령·판례 벡터DB와 법령 MCP(RAG), 결제 PG, 로드밸런서.
 
