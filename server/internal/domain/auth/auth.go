@@ -17,6 +17,9 @@ const (
 	CodeTTL        = 5 * time.Minute
 	ResendCooldown = 60 * time.Second
 	MaxAttempts    = 5
+	// A single email may receive at most MaxSendsPerWindow codes per SendWindow (on top of ResendCooldown).
+	MaxSendsPerWindow = 5
+	SendWindow        = time.Hour
 
 	AccessTTL          = 30 * time.Minute
 	RefreshTTL         = 72 * time.Hour
@@ -27,6 +30,8 @@ var (
 	ErrCodeExpired     = errors.New("인증코드가 만료됐어요. 다시 받아 주세요")
 	ErrCodeInvalid     = errors.New("인증코드가 올바르지 않아요")
 	ErrTooManyAttempts = errors.New("인증코드를 너무 많이 틀렸어요. 다시 받아 주세요")
+	// ErrMailSend: the mail provider failed. The code row is deleted, so the user can retry right away.
+	ErrMailSend = errors.New("인증코드 메일을 보내지 못했어요. 잠시 후 다시 시도해 주세요")
 )
 
 // RetryAfterError holds how long to wait before retrying when a verification code is requested too often.
@@ -41,6 +46,9 @@ type EmailCode struct {
 	Attempts  int
 	SentAt    time.Time
 	ExpiresAt time.Time
+	// SendCount is how many codes were sent in the window that started at WindowStartedAt.
+	SendCount       int
+	WindowStartedAt time.Time
 }
 
 // NewCode creates a 6-digit numeric verification code.
@@ -66,14 +74,27 @@ func HashCode(secret, email, code string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-// CanResend reports whether a code can be sent again to the same email.
-// If not, it also returns how long until it is possible.
+// CanResend reports whether a code can be sent again to the same email: the cooldown must have passed
+// and the window limit must not be reached. If not, it also returns how long until it is possible.
 func (c EmailCode) CanResend(now time.Time) (time.Duration, bool) {
-	wait := c.SentAt.Add(ResendCooldown).Sub(now)
-	if wait > 0 {
+	if wait := c.SentAt.Add(ResendCooldown).Sub(now); wait > 0 {
 		return wait, false
 	}
+	if c.SendCount >= MaxSendsPerWindow {
+		if wait := c.WindowStartedAt.Add(SendWindow).Sub(now); wait > 0 {
+			return wait, false
+		}
+	}
 	return 0, true
+}
+
+// NextSend returns the send counters for a code sent at now: the current window continues, or a new one starts
+// when there is none yet or it has ended.
+func (c EmailCode) NextSend(now time.Time) (sendCount int, windowStartedAt time.Time) {
+	if c.WindowStartedAt.IsZero() || !now.Before(c.WindowStartedAt.Add(SendWindow)) {
+		return 1, now
+	}
+	return c.SendCount + 1, c.WindowStartedAt
 }
 
 // Check verifies that the hash of the entered code matches. The caller is responsible for incrementing the attempt count.

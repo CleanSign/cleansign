@@ -93,7 +93,7 @@ func (q *Queries) DeleteSessionsByUser(ctx context.Context, userID string) error
 }
 
 const getEmailCode = `-- name: GetEmailCode :one
-SELECT email, code_hash, attempts, sent_at, expires_at FROM email_codes WHERE email = $1
+SELECT email, code_hash, attempts, sent_at, expires_at, send_count, window_started_at FROM email_codes WHERE email = $1
 `
 
 func (q *Queries) GetEmailCode(ctx context.Context, email string) (EmailCode, error) {
@@ -105,6 +105,8 @@ func (q *Queries) GetEmailCode(ctx context.Context, email string) (EmailCode, er
 		&i.Attempts,
 		&i.SentAt,
 		&i.ExpiresAt,
+		&i.SendCount,
+		&i.WindowStartedAt,
 	)
 	return i, err
 }
@@ -138,20 +140,24 @@ func (q *Queries) IncrementEmailCodeAttempts(ctx context.Context, email string) 
 }
 
 const upsertEmailCode = `-- name: UpsertEmailCode :exec
-INSERT INTO email_codes (email, code_hash, attempts, sent_at, expires_at)
-VALUES ($1, $2, 0, $3, $4)
+INSERT INTO email_codes (email, code_hash, attempts, sent_at, expires_at, send_count, window_started_at)
+VALUES ($1, $2, 0, $3, $4, $5, $6)
 ON CONFLICT (email) DO UPDATE
 SET code_hash = EXCLUDED.code_hash,
     attempts = 0,
     sent_at = EXCLUDED.sent_at,
-    expires_at = EXCLUDED.expires_at
+    expires_at = EXCLUDED.expires_at,
+    send_count = EXCLUDED.send_count,
+    window_started_at = EXCLUDED.window_started_at
 `
 
 type UpsertEmailCodeParams struct {
-	Email     string
-	CodeHash  string
-	SentAt    time.Time
-	ExpiresAt time.Time
+	Email           string
+	CodeHash        string
+	SentAt          time.Time
+	ExpiresAt       time.Time
+	SendCount       int32
+	WindowStartedAt time.Time
 }
 
 func (q *Queries) UpsertEmailCode(ctx context.Context, arg UpsertEmailCodeParams) error {
@@ -160,6 +166,8 @@ func (q *Queries) UpsertEmailCode(ctx context.Context, arg UpsertEmailCodeParams
 		arg.CodeHash,
 		arg.SentAt,
 		arg.ExpiresAt,
+		arg.SendCount,
+		arg.WindowStartedAt,
 	)
 	return err
 }
