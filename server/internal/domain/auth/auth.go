@@ -27,6 +27,8 @@ var (
 	ErrCodeExpired     = errors.New("인증코드가 만료됐어요. 다시 받아 주세요")
 	ErrCodeInvalid     = errors.New("인증코드가 올바르지 않아요")
 	ErrTooManyAttempts = errors.New("인증코드를 너무 많이 틀렸어요. 다시 받아 주세요")
+	// ErrMailSend: the mail provider failed. The code row is deleted, so the user can retry right away.
+	ErrMailSend = errors.New("인증코드 메일을 보내지 못했어요. 잠시 후 다시 시도해 주세요")
 )
 
 // RetryAfterError holds how long to wait before retrying when a verification code is requested too often.
