@@ -16,7 +16,5 @@ So that [benefit]
 - [ ] [e.g. User can upload a contract by dragging a file into the drop zone]
 
 ## 3. Design (Optional)
-- [Link to design assets, relevant files/directories, out of scope]
-
-## 4. Parent Epic (Optional)
-Part of #
+- UI design: [link to Figma / mockups]
+- System Design: [link to architecture / API / data model docs]
