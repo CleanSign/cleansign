@@ -6,7 +6,7 @@
 #   make status              Show what is currently running
 #   make stop                Find and stop web/server/AI server left over from make run, by port
 #   make stop-ollama         Unload the model and stop `ollama serve`
-#   make check               Go (vet, tests, lint) + web (types, lint) + AI server tests
+#   make check               Go (vet, tests, lint) + web (types, lint) + AI server tests + labeling CSV schema
 #   make gen                 Regenerate code: handler interfaces, DB code, web types, Service interfaces, test mocks
 #   make migration NAME=x    Create a new migration file (server/internal/database/migrations)
 #   make domain NAME=article Scaffold a new domain (server/internal/domain, service/article)
@@ -133,3 +133,4 @@ check:
 	cd web && npx tsc --noEmit
 	cd web && npx eslint src
 	cd ai-service && uv run pytest -q
+	python3 scripts/data/labeling.py

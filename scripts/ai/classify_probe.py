@@ -1,10 +1,12 @@
 """Clause classification prompt experiment (Ollama). Usage: python3 classify_probe.py [model name] [prompt version]
 Tests type classification with labeled-data clauses plus temporary normal clauses (synthetic, not a dataset)."""
-import csv, json, sys, time, urllib.request, pathlib
+import json, sys, time, urllib.request, pathlib
 
 MODEL = sys.argv[1] if len(sys.argv) > 1 else "gemma4:12b"
 VERSION = sys.argv[2] if len(sys.argv) > 2 else "v1"
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts/data"))
+import labeling
 
 TYPES = ["선순위근저당", "보증금반환제한", "원상복구과도부담", "묵시적갱신배제", "기타불이익", "정상"]
 
@@ -49,7 +51,7 @@ SYNTHETIC_NORMAL = [
 
 def load():
     rows = []
-    for x in csv.DictReader(open(ROOT / "data/labeling/dataset_template.csv", encoding="utf-8")):
+    for x in labeling.load("dataset_template.csv"):
         t = x["clause_text_verbatim"].strip()
         if t and x["clause_type"] in TYPES:
             rows.append((x["case_id"], t, x["clause_type"]))

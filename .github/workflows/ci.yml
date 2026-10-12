@@ -161,6 +161,15 @@ jobs:
             exit 1
           fi
 
+  # ---------------------------------------------------------------- labeling data (CSV)
+  labeling-data:
+    name: Labeling data / Schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - run: python3 scripts/data/labeling.py
+
   # ---------------------------------------------------------------- ai-service (Python)
   ai-service:
     name: AI service tests
