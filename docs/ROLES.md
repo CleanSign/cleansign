@@ -11,4 +11,4 @@
 ## 협업 경계
 - **API 스펙**: Backend 주도, Frontend·AI Researcher 합의
 - **배포/인프라**: PM 주도, Backend 지원
-- **결과 품질 기준**: Operations 제시, AI Researcher 개선
+- **결과 품질 기준**: Operations 제시, AI Researcher 개선.
