@@ -11,11 +11,14 @@ DELETE FROM contract_file WHERE contract_id = @contract_id;
 
 -- name: ClaimContract :one
 -- Takes the oldest runnable job. SKIP LOCKED lets many workers claim at the same time without waiting for each other.
+-- A job that waited longer than the queue allows (created before @not_before) is never claimed: the reaper fails it,
+-- so an old upload is not analysed (and its PDF kept) long after the user gave up on it.
 UPDATE contract
 SET attempts = attempts + 1, lease_until = @lease_until, locked_by = @worker
 WHERE id = (
     SELECT c.id FROM contract c
     WHERE c.status = 'pending' AND c.lease_until IS NULL AND c.next_run_at <= @now AND c.attempts < @max_attempts::int
+      AND c.created_at > @not_before
     ORDER BY c.next_run_at, c.created_at
     FOR UPDATE SKIP LOCKED
     LIMIT 1

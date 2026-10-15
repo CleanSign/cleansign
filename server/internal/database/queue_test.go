@@ -114,6 +114,29 @@ func TestClaimTakesJobsOldestFirstAndOnce(t *testing.T) {
 	}
 }
 
+func TestClaimIgnoresJobsThatWaitedTooLong(t *testing.T) {
+	e := newQueueEnv(t)
+	e.enqueue(t, "old")
+	if _, err := e.pool.Exec(ctx, `UPDATE contract SET created_at = now() - interval '25 hours' WHERE id = 'old'`); err != nil {
+		t.Fatal(err)
+	}
+	e.enqueue(t, "fresh")
+
+	job, ok, err := e.repo.Claim(ctx, "w1", later(), contract.LeaseDuration)
+	if err != nil || !ok || job.ID != "fresh" {
+		t.Fatalf("only the fresh job is claimed: %+v %v %v", job, ok, err)
+	}
+	if _, ok, _ := e.repo.Claim(ctx, "w2", later(), contract.LeaseDuration); ok {
+		t.Error("the job that waited too long must stay unclaimed until the reaper fails it")
+	}
+	if res, _ := e.repo.ReapExpired(ctx, time.Now()); res.Failed != 1 {
+		t.Errorf("the reaper fails it: %+v", res)
+	}
+	if st := e.state(t, "old"); st.status != "failed" || st.attempts != 0 {
+		t.Errorf("failed without ever running: %+v", st)
+	}
+}
+
 func TestClaimSkipsLockedRowsUnderConcurrency(t *testing.T) {
 	e := newQueueEnv(t)
 	const jobs = 6

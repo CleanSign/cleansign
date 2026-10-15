@@ -16,6 +16,7 @@ SET attempts = attempts + 1, lease_until = $1, locked_by = $2
 WHERE id = (
     SELECT c.id FROM contract c
     WHERE c.status = 'pending' AND c.lease_until IS NULL AND c.next_run_at <= $3 AND c.attempts < $4::int
+      AND c.created_at > $5
     ORDER BY c.next_run_at, c.created_at
     FOR UPDATE SKIP LOCKED
     LIMIT 1
@@ -28,6 +29,7 @@ type ClaimContractParams struct {
 	Worker      *string
 	Now         time.Time
 	MaxAttempts int32
+	NotBefore   time.Time
 }
 
 type ClaimContractRow struct {
@@ -38,12 +40,15 @@ type ClaimContractRow struct {
 }
 
 // Takes the oldest runnable job. SKIP LOCKED lets many workers claim at the same time without waiting for each other.
+// A job that waited longer than the queue allows (created before @not_before) is never claimed: the reaper fails it,
+// so an old upload is not analysed (and its PDF kept) long after the user gave up on it.
 func (q *Queries) ClaimContract(ctx context.Context, arg ClaimContractParams) (ClaimContractRow, error) {
 	row := q.db.QueryRow(ctx, claimContract,
 		arg.LeaseUntil,
 		arg.Worker,
 		arg.Now,
 		arg.MaxAttempts,
+		arg.NotBefore,
 	)
 	var i ClaimContractRow
 	err := row.Scan(

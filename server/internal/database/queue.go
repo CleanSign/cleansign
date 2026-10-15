@@ -40,10 +40,12 @@ func (r *ContractRepo) Enqueue(ctx context.Context, c contract.Contract, pdf []b
 }
 
 // Claim takes the oldest runnable job for worker and gives it a lease of the given length. ok is false if nothing is runnable.
+// A job that has waited longer than contract.QueueExpiry is not runnable any more; ReapExpired fails it.
 func (r *ContractRepo) Claim(ctx context.Context, worker string, now time.Time, lease time.Duration) (job contract.Job, ok bool, err error) {
 	until := now.Add(lease)
 	row, err := r.q.ClaimContract(ctx, sqlc.ClaimContractParams{
 		Now: now, LeaseUntil: &until, Worker: &worker, MaxAttempts: contract.MaxAttempts,
+		NotBefore: now.Add(-contract.QueueExpiry),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return contract.Job{}, false, nil
