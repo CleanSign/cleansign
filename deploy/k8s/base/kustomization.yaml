@@ -10,5 +10,6 @@ resources:
   - postgres.yaml
   - ai-service.yaml
   - server.yaml
+  - worker.yaml
   - web.yaml
   - ingress.yaml

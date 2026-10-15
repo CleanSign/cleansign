@@ -3,7 +3,7 @@
 #   make secrets   Create overlays/local/secrets.env with random values (only if missing)
 #   make up        Apply the local overlay to the cluster
 #   make status    Show pods, services, volumes
-#   make deploy S=server   Rebuild one service image (server|ai-service|web), load it into the VM, restart its pods
+#   make deploy S=server   Rebuild one service image (server|ai-service|web), load it into the VM, restart its pods (server also restarts the worker)
 #   make forward   Open each service on its own local port (Ctrl+C stops all)
 #                    web http://localhost:3000   server http://localhost:4000
 #                    ai  http://localhost:8000   db     localhost:5433
@@ -37,11 +37,14 @@ up: secrets
 	kubectl apply -k $(OVERLAY_DIR)
 
 # The image tag stays "local", so applying the same YAML would change nothing. Restart the pods to pick up the new image.
+# The worker runs the server image, so deploying server restarts the worker too.
+DEPLOYMENTS = $(S) $(if $(filter server,$(S)),worker)
+
 deploy:
 	@[ -n "$(S)" ] || { echo "usage: make deploy S=server|ai-service|web"; exit 1; }
 	scripts/images.sh $(S)
-	kubectl -n $(NS) rollout restart deploy/$(S)
-	kubectl -n $(NS) rollout status deploy/$(S) --timeout=180s
+	for d in $(DEPLOYMENTS); do kubectl -n $(NS) rollout restart deploy/$$d; done
+	for d in $(DEPLOYMENTS); do kubectl -n $(NS) rollout status deploy/$$d --timeout=180s; done
 
 status:
 	kubectl -n $(NS) get pods,svc,pvc -o wide
