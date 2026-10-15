@@ -102,32 +102,6 @@ func (r *fakeRepo) Fail(_ context.Context, id, message string) error {
 	return nil
 }
 
-func (r *fakeRepo) FailIfStale(_ context.Context, id string, before time.Time, message string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if c, ok := r.contracts[id]; ok && c.Status == contract.StatusPending && c.CreatedAt.Before(before) {
-		c.Status = contract.StatusFailed
-		c.ErrorMessage = &message
-		r.contracts[id] = c
-	}
-	return nil
-}
-
-func (r *fakeRepo) FailAllStale(_ context.Context, before time.Time, message string) (int64, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	var n int64
-	for id, c := range r.contracts {
-		if c.Status == contract.StatusPending && c.CreatedAt.Before(before) {
-			c.Status = contract.StatusFailed
-			c.ErrorMessage = &message
-			r.contracts[id] = c
-			n++
-		}
-	}
-	return n, nil
-}
-
 func (r *fakeRepo) status(id string) (contract.Contract, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

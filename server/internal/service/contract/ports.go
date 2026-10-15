@@ -25,10 +25,6 @@ type Repository interface {
 	// If the user deleted the contract during analysis, it saves nothing and returns false.
 	Complete(ctx context.Context, id string, r contract.Result, clauses []contract.Clause) (bool, error)
 	Fail(ctx context.Context, id, message string) error
-	// FailIfStale marks only pending contracts created before createdBefore as failed.
-	FailIfStale(ctx context.Context, id string, createdBefore time.Time, message string) error
-	// FailAllStale marks all stale pending contracts as failed and returns the number changed.
-	FailAllStale(ctx context.Context, createdBefore time.Time, message string) (int64, error)
 }
 
 // Queue is the analysis job queue. The contract table is the queue: see migration 00003.

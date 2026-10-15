@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -163,15 +162,6 @@ func (r *ContractRepo) Fail(ctx context.Context, id, message string) error {
 		return err
 	}
 	return tx.Commit(ctx)
-}
-
-func (r *ContractRepo) FailIfStale(ctx context.Context, id string, createdBefore time.Time, message string) error {
-	_, err := r.q.FailStaleContract(ctx, sqlc.FailStaleContractParams{ID: id, CreatedAt: createdBefore, ErrorMessage: &message})
-	return err
-}
-
-func (r *ContractRepo) FailAllStale(ctx context.Context, createdBefore time.Time, message string) (int64, error) {
-	return r.q.FailStaleContracts(ctx, sqlc.FailStaleContractsParams{CreatedAt: createdBefore, ErrorMessage: &message})
 }
 
 // --- Conversion ---

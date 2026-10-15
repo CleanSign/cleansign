@@ -262,12 +262,11 @@ func TestCompleteIsAtomic(t *testing.T) {
 	}
 }
 
-func TestFailAndStale(t *testing.T) {
+func TestFail(t *testing.T) {
 	pool := pgtest.New(t)
 	newUser(t, database.NewUserRepo(pool), "u1", "a@b.com")
 	repo := database.NewContractRepo(pool)
 	repo.Create(ctx, pending("k1", "u1"))
-	repo.Create(ctx, pending("k2", "u1"))
 
 	if err := repo.Fail(ctx, "k1", "실패했어요"); err != nil {
 		t.Fatal(err)
@@ -275,21 +274,6 @@ func TestFailAndStale(t *testing.T) {
 	got, _ := repo.Get(ctx, "u1", "k1")
 	if got.Status != contract.StatusFailed || got.ErrorMessage == nil || *got.ErrorMessage != "실패했어요" || got.Progress != nil {
 		t.Errorf("failed 상태: %+v", got)
-	}
-
-	// a contract just created is newer than the cutoff, so it is not changed
-	repo.FailIfStale(ctx, "k2", time.Now().Add(-time.Hour), "stale")
-	if got, _ := repo.Get(ctx, "u1", "k2"); got.Status != contract.StatusPending {
-		t.Errorf("새 계약서는 stale이 아니다: %v", got.Status)
-	}
-	repo.FailIfStale(ctx, "k2", time.Now().Add(time.Hour), "stale")
-	if got, _ := repo.Get(ctx, "u1", "k2"); got.Status != contract.StatusFailed || *got.ErrorMessage != "stale" {
-		t.Errorf("기준 시각보다 오래됐으면 failed: %+v", got)
-	}
-
-	repo.Create(ctx, pending("k3", "u1"))
-	if n, err := repo.FailAllStale(ctx, time.Now().Add(time.Hour), "sweep"); err != nil || n != 1 {
-		t.Errorf("FailAllStale은 pending만 바꾼다: %d %v", n, err)
 	}
 }
 

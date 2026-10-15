@@ -133,45 +133,6 @@ func (q *Queries) FailContract(ctx context.Context, arg FailContractParams) (int
 	return result.RowsAffected(), nil
 }
 
-const failStaleContract = `-- name: FailStaleContract :execrows
-UPDATE contract
-SET status = 'failed', error_message = $3, progress = NULL
-WHERE id = $1 AND status = 'pending' AND created_at < $2
-`
-
-type FailStaleContractParams struct {
-	ID           string
-	CreatedAt    time.Time
-	ErrorMessage *string
-}
-
-func (q *Queries) FailStaleContract(ctx context.Context, arg FailStaleContractParams) (int64, error) {
-	result, err := q.db.Exec(ctx, failStaleContract, arg.ID, arg.CreatedAt, arg.ErrorMessage)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
-const failStaleContracts = `-- name: FailStaleContracts :execrows
-UPDATE contract
-SET status = 'failed', error_message = $2, progress = NULL
-WHERE status = 'pending' AND created_at < $1
-`
-
-type FailStaleContractsParams struct {
-	CreatedAt    time.Time
-	ErrorMessage *string
-}
-
-func (q *Queries) FailStaleContracts(ctx context.Context, arg FailStaleContractsParams) (int64, error) {
-	result, err := q.db.Exec(ctx, failStaleContracts, arg.CreatedAt, arg.ErrorMessage)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const getContractByID = `-- name: GetContractByID :one
 SELECT id, user_id, file_name, file_key, mime_type, status, loss_amount, risk_score, grade, loss_min, loss_max, deposit_amount, model_version, warnings, risk_flow, progress, error_message, created_at, attempts, next_run_at, lease_until, locked_by FROM contract WHERE id = $1
 `

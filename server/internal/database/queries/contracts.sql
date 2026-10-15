@@ -64,13 +64,3 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
 UPDATE contract
 SET status = 'failed', error_message = $2, progress = NULL, lease_until = NULL, locked_by = NULL
 WHERE id = $1 AND status = 'pending';
-
--- name: FailStaleContract :execrows
-UPDATE contract
-SET status = 'failed', error_message = $3, progress = NULL
-WHERE id = $1 AND status = 'pending' AND created_at < $2;
-
--- name: FailStaleContracts :execrows
-UPDATE contract
-SET status = 'failed', error_message = $2, progress = NULL
-WHERE status = 'pending' AND created_at < $1;
