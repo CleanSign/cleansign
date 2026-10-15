@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 
 	"github.com/CleanSign/cleansign/server/internal/database/sqlc"
 	"github.com/CleanSign/cleansign/server/internal/shared/errs"
@@ -42,7 +43,14 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	db := stdlib.OpenDBFromPool(pool)
 	defer func() { _ = db.Close() }()
 
-	provider, err := goose.NewProvider(goose.DialectPostgres, db, sub)
+	// Several processes may start at once (API replicas, workers). A Postgres advisory lock makes them take turns,
+	// so each migration is applied exactly once and the others wait for it to finish.
+	// Check for the lock every second (the default is every 5 seconds) for up to two minutes.
+	locker, err := lock.NewPostgresSessionLocker(lock.WithLockTimeout(1, 120))
+	if err != nil {
+		return fmt.Errorf("create migration locker: %w", err)
+	}
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, sub, goose.WithSessionLocker(locker))
 	if err != nil {
 		return fmt.Errorf("create migration provider: %w", err)
 	}

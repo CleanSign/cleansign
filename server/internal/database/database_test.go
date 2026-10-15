@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,37 @@ import (
 )
 
 var ctx = context.Background()
+
+// Several processes (API replicas, workers) may start at the same moment on an empty database.
+func TestMigrateIsSafeWhenRunConcurrently(t *testing.T) {
+	pool := pgtest.NewUnmigrated(t)
+
+	const starters = 8
+	errs := make(chan error, starters)
+	var wg sync.WaitGroup
+	for i := 0; i < starters; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- database.Migrate(ctx, pool)
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Errorf("every concurrent Migrate must succeed: %v", err)
+		}
+	}
+
+	var applied, versions int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM information_schema.tables WHERE table_name IN ('users', 'contract', 'contract_file')`).Scan(&applied); err != nil || applied != 3 {
+		t.Errorf("the schema is complete: %d tables %v", applied, err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM goose_db_version WHERE version_id > 0`).Scan(&versions); err != nil || versions != 3 {
+		t.Errorf("each migration is recorded exactly once: %d %v", versions, err)
+	}
+}
 
 func TestMigrateIsIdempotent(t *testing.T) {
 	pool := pgtest.New(t)
