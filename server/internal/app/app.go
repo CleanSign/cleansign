@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,6 +22,7 @@ import (
 	contractsvc "github.com/CleanSign/cleansign/server/internal/service/contract"
 	usersvc "github.com/CleanSign/cleansign/server/internal/service/user"
 	"github.com/CleanSign/cleansign/server/internal/shared/clock"
+	"github.com/CleanSign/cleansign/server/internal/shared/ids"
 )
 
 const (
@@ -36,15 +38,20 @@ type Overrides struct {
 	Analyzer contractsvc.Analyzer
 	Mailer   authsvc.Mailer
 	Clock    clock.Clock
+	// TuneWorker changes the worker settings, e.g. to poll faster in tests.
+	TuneWorker func(*contractsvc.WorkerConfig)
 }
 
 type App struct {
 	Echo      *echo.Echo
 	Contracts contractsvc.Service
 	Auth      authsvc.Service
+	// Worker runs the queued analyses. Run starts it inside this process when embedWorker is set.
+	Worker *contractsvc.Worker
 
-	pool *pgxpool.Pool
-	log  *slog.Logger
+	pool        *pgxpool.Pool
+	log         *slog.Logger
+	embedWorker bool
 }
 
 // New connects to the DB, applies migrations, and assembles the server.
@@ -88,16 +95,37 @@ func Build(pool *pgxpool.Pool, cfg config.Config, log *slog.Logger, o Overrides)
 		mailer, token.New(cfg.JWTSecret), clk, cfg.JWTSecret, log,
 	)
 	userService := usersvc.NewService(users, clk)
-	contractService := contractsvc.NewService(database.NewContractRepo(pool), analyzer, clk, log, cfg.AI.Timeout+analysisSaveMargin)
+	contractRepo := database.NewContractRepo(pool)
+	contractService := contractsvc.NewService(contractRepo, contractRepo, clk)
+	workerCfg := contractsvc.WorkerConfig{
+		ID:           newWorkerID(),
+		Concurrency:  cfg.Worker.Concurrency,
+		JobTimeout:   cfg.AI.Timeout + analysisSaveMargin,
+		ShutdownWait: analysisShutdownWait,
+	}
+	if o.TuneWorker != nil {
+		o.TuneWorker(&workerCfg)
+	}
+	worker := contractsvc.NewWorker(contractRepo, database.NewFileStore(pool), contractRepo, analyzer, clk, log, workerCfg)
 
 	e := server.New(server.Deps{
 		Auth: authService, Users: userService, Contracts: contractService, Log: log,
 		CookieSecure: cfg.CookieSecure, Health: pool.Ping,
 	})
-	return &App{Echo: e, Contracts: contractService, Auth: authService, pool: pool, log: log}
+	return &App{Echo: e, Contracts: contractService, Auth: authService, Worker: worker, pool: pool, log: log, embedWorker: cfg.Worker.Embedded}
 }
 
-// Run starts the server and, once ctx ends, waits for in-flight requests and analyses before cleaning up.
+// newWorkerID names this process as the owner of the job leases it takes: the host name plus a random suffix.
+func newWorkerID() string {
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		host = "worker"
+	}
+	return host + "-" + ids.New()[:8]
+}
+
+// Run starts the server (and the embedded worker, if enabled). Once ctx ends it stops accepting requests, then lets the
+// worker finish or hand back its running analyses before cleaning up.
 func (a *App) Run(ctx context.Context, port string) error {
 	housekeepingCtx, stopHousekeeping := context.WithCancel(context.Background())
 	housekeepingDone := make(chan struct{})
@@ -105,6 +133,19 @@ func (a *App) Run(ctx context.Context, port string) error {
 		defer close(housekeepingDone)
 		a.housekeeping(housekeepingCtx)
 	}()
+
+	workerCtx, stopWorker := context.WithCancel(context.Background())
+	defer stopWorker()
+	workerDone := make(chan struct{})
+	if a.embedWorker {
+		go func() {
+			defer close(workerDone)
+			a.Worker.Run(workerCtx)
+		}()
+	} else {
+		close(workerDone)
+		a.log.Info("no embedded worker: analyses are run by separate worker processes")
+	}
 
 	serveErr := make(chan error, 1)
 	go func() {
@@ -127,9 +168,8 @@ func (a *App) Run(ctx context.Context, port string) error {
 	if err := a.Echo.Shutdown(httpCtx); err != nil {
 		a.log.Warn("http shutdown", "error", err)
 	}
-	jobsCtx, cancelJobs := context.WithTimeout(context.Background(), analysisShutdownWait)
-	defer cancelJobs()
-	a.Contracts.Shutdown(jobsCtx)
+	stopWorker() // the worker waits for its running analyses on its own (up to analysisShutdownWait)
+	<-workerDone
 
 	stopHousekeeping()
 	<-housekeepingDone
@@ -137,12 +177,9 @@ func (a *App) Run(ctx context.Context, port string) error {
 	return runErr
 }
 
-// housekeeping periodically cleans up analyses lost when the server went down and expired auth data.
+// housekeeping periodically removes expired auth data. (Lost and stale analyses are cleaned up by the worker's reaper.)
 func (a *App) housekeeping(ctx context.Context) {
 	run := func() {
-		if err := a.Contracts.SweepStale(ctx); err != nil && ctx.Err() == nil {
-			a.log.Error("sweep stale analyses", "error", err)
-		}
 		if err := a.Auth.PurgeExpired(ctx); err != nil && ctx.Err() == nil {
 			a.log.Error("purge expired auth data", "error", err)
 		}

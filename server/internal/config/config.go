@@ -24,6 +24,14 @@ type AI struct {
 	Timeout time.Duration
 }
 
+// Worker configures the analysis worker.
+type Worker struct {
+	// Embedded runs a worker inside the API server process. Turn it off when workers run as their own processes.
+	Embedded bool
+	// Concurrency is how many analyses one worker runs at once.
+	Concurrency int
+}
+
 type Config struct {
 	Port         string
 	DatabaseURL  string
@@ -31,6 +39,7 @@ type Config struct {
 	CookieSecure bool
 	SMTP         SMTP
 	AI           AI
+	Worker       Worker
 }
 
 const minSecretLen = 16
@@ -75,6 +84,10 @@ func load(get func(string) string) (Config, error) {
 			URL:     strings.TrimRight(str("AI_SERVICE_URL", "http://localhost:8000"), "/"),
 			Token:   str("AI_SERVICE_TOKEN", ""),
 			Timeout: time.Duration(integer("AI_SERVICE_TIMEOUT_MS", 600_000)) * time.Millisecond,
+		},
+		Worker: Worker{
+			Embedded:    !strings.EqualFold(str("WORKER_EMBEDDED", "true"), "false"),
+			Concurrency: integer("WORKER_CONCURRENCY", 1),
 		},
 	}
 

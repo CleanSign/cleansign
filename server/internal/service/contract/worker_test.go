@@ -30,6 +30,11 @@ type requeueCall struct {
 }
 
 // fakeQueue is an in-memory Queue: just enough of the real semantics (lease, owner, next run) for the worker's decisions.
+type enqueuedContract struct {
+	contract contract.Contract
+	pdf      []byte
+}
+
 type fakeQueue struct {
 	mu          sync.Mutex
 	jobs        []*queuedJob
@@ -38,6 +43,10 @@ type fakeQueue struct {
 	requeues    []requeueCall
 	reaps       int
 	owner       string
+
+	repo       *fakeRepo // if set, Enqueue also creates the contract there, like the real one
+	enqueueErr error
+	enqueueLog []enqueuedContract
 }
 
 func newFakeQueue(jobs ...contract.Job) *fakeQueue {
@@ -48,7 +57,24 @@ func newFakeQueue(jobs ...contract.Job) *fakeQueue {
 	return q
 }
 
-func (q *fakeQueue) Enqueue(context.Context, contract.Contract, []byte) error { return nil }
+func (q *fakeQueue) Enqueue(ctx context.Context, c contract.Contract, pdf []byte) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.enqueueErr != nil {
+		return q.enqueueErr
+	}
+	q.enqueueLog = append(q.enqueueLog, enqueuedContract{c, pdf})
+	if q.repo != nil {
+		return q.repo.Create(ctx, c)
+	}
+	return nil
+}
+
+func (q *fakeQueue) enqueued() []enqueuedContract {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return append([]enqueuedContract(nil), q.enqueueLog...)
+}
 
 func (q *fakeQueue) Claim(_ context.Context, worker string, now time.Time, _ time.Duration) (contract.Job, bool, error) {
 	q.mu.Lock()
