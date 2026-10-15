@@ -49,8 +49,11 @@ SET status = 'completed',
     warnings = $9,
     risk_flow = $10,
     progress = NULL,
-    error_message = NULL
-WHERE id = $1;
+    error_message = NULL,
+    lease_until = NULL,
+    locked_by = NULL
+-- Only a job that is still pending can complete. A second worker that finishes after another one already did is ignored.
+WHERE id = $1 AND status = 'pending';
 
 -- name: InsertClause :exec
 INSERT INTO contract_danger_clause
@@ -59,8 +62,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
 
 -- name: FailContract :execrows
 UPDATE contract
-SET status = 'failed', error_message = $2, progress = NULL
-WHERE id = $1;
+SET status = 'failed', error_message = $2, progress = NULL, lease_until = NULL, locked_by = NULL
+WHERE id = $1 AND status = 'pending';
 
 -- name: FailStaleContract :execrows
 UPDATE contract
