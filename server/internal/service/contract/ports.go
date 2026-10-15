@@ -58,6 +58,9 @@ type FileStore interface {
 type AnalysisError struct {
 	Message string
 	Err     error
+	// Retryable is true when trying again may succeed: the AI server was unreachable or failed on its side.
+	// It is false when the same input would fail again (unreadable PDF, timeout, bad request).
+	Retryable bool
 }
 
 func (e *AnalysisError) Error() string { return e.Message }

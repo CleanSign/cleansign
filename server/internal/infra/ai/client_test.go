@@ -240,3 +240,84 @@ func TestLargeResultLine(t *testing.T) {
 		t.Fatal("큰 줄을 읽지 못함")
 	}
 }
+
+// Which failures are worth another attempt: the AI server's trouble, yes; a problem with the input or the request, no.
+func TestRetryable(t *testing.T) {
+	status := func(code int) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(code) }
+	}
+	dropMidStream := func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, `{"type":"progress","stage":"ocr","done":1,"total":2}`)
+		w.(http.Flusher).Flush()
+		panic(http.ErrAbortHandler) // closes the connection without a clean end, like a crashed ai-service
+	}
+	tests := []struct {
+		name string
+		h    http.HandlerFunc
+		want bool
+	}{
+		{"500", status(500), true},
+		{"503", status(503), true},
+		{"429", status(429), true},
+		{"401 bad token", status(401), false},
+		{"400", status(400), false},
+		{"422 unreadable input", status(422), false},
+		{"error event: internal failure", ndjson(`{"type":"error","detail":"ValueError: x"}`), true},
+		{"error event: readable input problem", ndjson(`{"type":"error","detail":"읽을 수 없는 PDF","readable":true}`), false},
+		{"connection drops mid stream", dropMidStream, true},
+		{"no result", ndjson(`{"type":"progress","stage":"ocr","done":1,"total":2}`), false},
+		{"invalid json", ndjson(`{"type":"progress"`, resultLine), false},
+		{"undecodable result", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, `{"type":"result","data":"x"}`) }, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := analyze(t, tc.h, nil)
+			var ae *svc.AnalysisError
+			if !errors.As(err, &ae) {
+				t.Fatalf("AnalysisError가 아님: %T %v", err, err)
+			}
+			if ae.Retryable != tc.want {
+				t.Errorf("Retryable = %v, want %v (%v)", ae.Retryable, tc.want, ae)
+			}
+		})
+	}
+
+	t.Run("connection refused", func(t *testing.T) {
+		srv := httptest.NewServer(nil)
+		url := srv.URL
+		srv.Close()
+		_, err := New(url, "", time.Second).Analyze(context.Background(), "a.pdf", []byte("x"), nil)
+		if ae := wantMsg(t, err, msgConnect); !ae.Retryable {
+			t.Error("an unreachable AI server is worth retrying")
+		}
+	})
+	t.Run("timeout", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case <-r.Context().Done():
+			case <-time.After(2 * time.Second):
+			}
+		}))
+		defer srv.Close()
+		_, err := New(srv.URL, "", 100*time.Millisecond).Analyze(context.Background(), "a.pdf", []byte("x"), nil)
+		if ae := wantMsg(t, err, msgTimeout); ae.Retryable {
+			t.Error("a timeout already used up its time; do not retry")
+		}
+	})
+	t.Run("caller cancelled", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// the server only notices a closed connection after the body is read, so do not wait for it forever
+			select {
+			case <-r.Context().Done():
+			case <-time.After(2 * time.Second):
+			}
+		}))
+		defer srv.Close()
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() { time.Sleep(50 * time.Millisecond); cancel() }()
+		_, err := New(srv.URL, "", 5*time.Second).Analyze(ctx, "a.pdf", []byte("x"), nil)
+		if ae := wantMsg(t, err, msgCanceled); ae.Retryable {
+			t.Error("a cancellation is not a failure: the worker decides by the cancel cause")
+		}
+	})
+}

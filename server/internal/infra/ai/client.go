@@ -114,7 +114,9 @@ func (c *Client) Analyze(ctx context.Context, fileName string, pdf []byte, onPro
 	}
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<10))
-		return zero, &svc.AnalysisError{Message: msgGeneric, Err: fmt.Errorf("ai-service %d: %s", res.StatusCode, snippet(raw))}
+		// 5xx and 429 are the AI server's trouble and may pass; other 4xx (bad token, bad request) would fail again.
+		retryable := res.StatusCode >= 500 || res.StatusCode == http.StatusTooManyRequests
+		return zero, &svc.AnalysisError{Message: msgGeneric, Err: fmt.Errorf("ai-service %d: %s", res.StatusCode, snippet(raw)), Retryable: retryable}
 	}
 
 	// The result event carries the whole analysis, so one line can be hundreds of KB; use a Reader instead of a Scanner.
@@ -124,7 +126,7 @@ func (c *Client) Analyze(ctx context.Context, fileName string, pdf []byte, onPro
 		if line = bytes.TrimSpace(line); len(line) > 0 {
 			var ev event
 			if err := json.Unmarshal(line, &ev); err != nil {
-				return zero, transportError(ctx, fmt.Errorf("ndjson 파싱 실패: %w", err))
+				return zero, badPayload(ctx, fmt.Errorf("ndjson 파싱 실패: %w", err))
 			}
 			switch ev.Type {
 			case "progress":
@@ -136,7 +138,7 @@ func (c *Client) Analyze(ctx context.Context, fileName string, pdf []byte, onPro
 			case "result":
 				a, err := decodeAnalysis(ev.Data)
 				if err != nil {
-					return zero, transportError(ctx, err)
+					return zero, badPayload(ctx, err)
 				}
 				return a, nil
 			case "error":
@@ -144,7 +146,8 @@ func (c *Client) Analyze(ctx context.Context, fileName string, pdf []byte, onPro
 				if ev.Readable && ev.Detail != "" {
 					msg = ev.Detail
 				}
-				return zero, &svc.AnalysisError{Message: msg, Err: fmt.Errorf("ai-service error 이벤트: %s", ev.Detail)}
+				// readable means the input is the problem (shown to the user as is); otherwise it is an internal failure
+				return zero, &svc.AnalysisError{Message: msg, Err: fmt.Errorf("ai-service error 이벤트: %s", ev.Detail), Retryable: !ev.Readable}
 			}
 		}
 		if rerr != nil {
@@ -195,7 +198,19 @@ func transportError(parent context.Context, err error) error {
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()) {
 		return &svc.AnalysisError{Message: msgTimeout, Err: err}
 	}
-	return &svc.AnalysisError{Message: msgConnect, Err: err}
+	// the AI server was unreachable or the connection broke (it may have restarted): trying again may work
+	return &svc.AnalysisError{Message: msgConnect, Err: err, Retryable: true}
+}
+
+// badPayload is for a response that arrived but cannot be understood. It looks like a connection failure to the user,
+// but asking again would return the same thing.
+func badPayload(parent context.Context, err error) error {
+	e := transportError(parent, err)
+	var ae *svc.AnalysisError
+	if errors.As(e, &ae) {
+		ae.Retryable = false
+	}
+	return e
 }
 
 func snippet(b []byte) string {
