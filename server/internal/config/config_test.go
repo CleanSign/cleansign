@@ -51,3 +51,25 @@ func TestLoadReportsAllProblems(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadWorkerDoesNotNeedAPISecrets(t *testing.T) {
+	cfg, err := loadFor(env(map[string]string{"DATABASE_URL": "postgres://x"}), false)
+	if err != nil {
+		t.Fatalf("a worker needs only the database: %v", err)
+	}
+	if cfg.Worker.HealthPort != "4001" || cfg.Worker.Concurrency != 1 || cfg.AI.URL != "http://localhost:8000" {
+		t.Errorf("worker defaults: %+v", cfg)
+	}
+
+	cfg, err = loadFor(env(map[string]string{"DATABASE_URL": "postgres://x", "WORKER_HEALTH_PORT": "5001", "WORKER_CONCURRENCY": "2", "AI_SERVICE_URL": "http://ai:8000"}), false)
+	if err != nil || cfg.Worker.HealthPort != "5001" || cfg.Worker.Concurrency != 2 || cfg.AI.URL != "http://ai:8000" {
+		t.Errorf("worker overrides: %+v %v", cfg, err)
+	}
+
+	if _, err := loadFor(env(nil), false); err == nil || !strings.Contains(err.Error(), "DATABASE_URL") {
+		t.Errorf("the database is still required: %v", err)
+	}
+	if _, err := load(env(map[string]string{"DATABASE_URL": "postgres://x"})); err == nil || !strings.Contains(err.Error(), "JWT_SECRET") {
+		t.Errorf("the API still requires JWT_SECRET: %v", err)
+	}
+}

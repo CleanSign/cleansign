@@ -74,10 +74,7 @@ func Build(pool *pgxpool.Pool, cfg config.Config, log *slog.Logger, o Overrides)
 	if clk == nil {
 		clk = clock.Real{}
 	}
-	analyzer := o.Analyzer
-	if analyzer == nil {
-		analyzer = ai.New(cfg.AI.URL, cfg.AI.Token, cfg.AI.Timeout)
-	}
+	analyzer := analyzerFor(cfg, o)
 	mailer := o.Mailer
 	if mailer == nil {
 		sender := mail.New(mail.Config{
@@ -97,6 +94,26 @@ func Build(pool *pgxpool.Pool, cfg config.Config, log *slog.Logger, o Overrides)
 	userService := usersvc.NewService(users, clk)
 	contractRepo := database.NewContractRepo(pool)
 	contractService := contractsvc.NewService(contractRepo, contractRepo, clk)
+	worker := newWorker(pool, cfg, log, clk, analyzer, o)
+
+	e := server.New(server.Deps{
+		Auth: authService, Users: userService, Contracts: contractService, Log: log,
+		CookieSecure: cfg.CookieSecure, Health: pool.Ping,
+	})
+	return &App{Echo: e, Contracts: contractService, Auth: authService, Worker: worker, pool: pool, log: log, embedWorker: cfg.Worker.Embedded}
+}
+
+// analyzerFor returns the AI analysis client (a fake in tests).
+func analyzerFor(cfg config.Config, o Overrides) contractsvc.Analyzer {
+	if o.Analyzer != nil {
+		return o.Analyzer
+	}
+	return ai.New(cfg.AI.URL, cfg.AI.Token, cfg.AI.Timeout)
+}
+
+// newWorker builds the analysis worker. The API server runs it inside the process; `server worker` runs it alone.
+func newWorker(pool *pgxpool.Pool, cfg config.Config, log *slog.Logger, clk clock.Clock, analyzer contractsvc.Analyzer, o Overrides) *contractsvc.Worker {
+	repo := database.NewContractRepo(pool)
 	workerCfg := contractsvc.WorkerConfig{
 		ID:           newWorkerID(),
 		Concurrency:  cfg.Worker.Concurrency,
@@ -106,13 +123,7 @@ func Build(pool *pgxpool.Pool, cfg config.Config, log *slog.Logger, o Overrides)
 	if o.TuneWorker != nil {
 		o.TuneWorker(&workerCfg)
 	}
-	worker := contractsvc.NewWorker(contractRepo, database.NewFileStore(pool), contractRepo, analyzer, clk, log, workerCfg)
-
-	e := server.New(server.Deps{
-		Auth: authService, Users: userService, Contracts: contractService, Log: log,
-		CookieSecure: cfg.CookieSecure, Health: pool.Ping,
-	})
-	return &App{Echo: e, Contracts: contractService, Auth: authService, Worker: worker, pool: pool, log: log, embedWorker: cfg.Worker.Embedded}
+	return contractsvc.NewWorker(repo, database.NewFileStore(pool), repo, analyzer, clk, log, workerCfg)
 }
 
 // newWorkerID names this process as the owner of the job leases it takes: the host name plus a random suffix.
