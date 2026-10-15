@@ -1,0 +1,97 @@
+# server: Go API. 클러스터 안에서 http://server:4000 으로 부른다 (web 이 /api/v1 을 여기로 넘긴다).
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  labels:
+    app: server
+spec:
+  selector:
+    app: server
+  ports:
+    - name: http
+      port: 4000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  labels:
+    app: server
+spec:
+  # 분석은 이 파드의 메모리 안에서 돌고, 분석 상태는 DB 에 있다. 그래서 파드가 겹쳐도(surge, replicas>1) 안전하다:
+  # 시작 시 정리(SweepStale)는 15분(contract.StaleAfter) 넘게 pending 인 것만 실패 처리하고, 분석 제한 시간은 약 11분이다.
+  # => 새 파드가 Ready 가 된 뒤에 옛 파드를 내리는 RollingUpdate 로 교체 중 중단을 없앤다.
+  #    (Recreate 로 측정했을 때 교체마다 약 3.5초 요청이 실패했다)
+  #
+  # 알려진 한계: 파드가 크래시/OOM 으로 갑자기 죽으면 그 파드가 돌리던 분석은 사라지고, 15분 뒤에야 실패로 표시된다.
+  # 정상 종료(SIGTERM)는 진행 중인 분석을 최대 30초 기다린다. 근본 해결은 분석 큐 + worker 도입.
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      # SIGTERM 을 받으면 서버가 HTTP 10초 + 진행 중인 분석 30초까지 기다리고 종료한다(internal/app/app.go).
+      # 이 시간이 그보다 짧으면 분석 도중에 강제로 죽는다. 여유를 두고 60초.
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: server
+          image: cleansign/server # 태그는 overlay 의 images: 에서 정한다
+          ports:
+            - name: http
+              containerPort: 4000
+          env:
+            - name: PORT
+              value: "4000"
+            # 아래 DATABASE_URL 의 $(POSTGRES_PASSWORD) 는 이 목록에서 먼저 정의된 환경변수로 치환된다.
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cleansign-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: postgres://postgres:$(POSTGRES_PASSWORD)@postgres:5432/cleansign?sslmode=disable
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cleansign-secrets
+                  key: JWT_SECRET
+            - name: AI_SERVICE_URL
+              value: http://ai-service:8000
+            - name: AI_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cleansign-secrets
+                  key: INTERNAL_TOKEN
+            # SMTP_HOST 가 비어 있으면 메일을 보내지 않고 인증코드가 로그에 찍힌다 (kubectl logs deploy/server).
+            # 실제 발송이 필요하면 overlay 에서 SMTP_* 를 채운다.
+          # /healthz 는 DB 연결까지 확인한다. DB 가 준비되기 전에는 Ready 가 되지 않는다.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
